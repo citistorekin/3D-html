@@ -1,0 +1,1882 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>3D 互動空間佈局與貨架規劃系統</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/loaders/GLTFLoader.js"></script>
+    <style>
+        ::-webkit-scrollbar { width: 6px; height: 6px; }
+        ::-webkit-scrollbar-track { background: #111827; }
+        ::-webkit-scrollbar-thumb { background: #475569; border-radius: 3px; }
+        ::-webkit-scrollbar-thumb:hover { background: #64748b; }
+        .scroller-clean { scrollbar-width: thin; scrollbar-color: #475569 #1e293b; scroll-behavior: smooth; }
+        .scroller-clean::-webkit-scrollbar { width: 4px; }
+        .scroller-clean::-webkit-scrollbar-track { background: #111827; }
+        .scroller-clean::-webkit-scrollbar-thumb { background: #4b5563; border-radius: 2px; }
+        #loadingOverlay { transition: opacity 0.4s ease-in-out; }
+    </style>
+</head>
+<body class="bg-slate-950 text-slate-100 h-screen w-screen flex flex-col font-sans overflow-hidden select-none">
+
+    <header class="bg-slate-900 border-b border-slate-800 px-6 py-4 flex items-center justify-between shadow-lg shrink-0 h-16">
+        <div class="flex items-center space-x-3">
+            <div class="bg-indigo-600 p-2.5 rounded-lg text-white shadow-md flex items-center justify-center">
+                <i class="fa-solid fa-cubes text-lg animate-pulse"></i>
+            </div>
+            <div>
+                <h1 class="text-base font-bold tracking-wider text-white leading-tight">智慧 3D 空間佈局規劃系統</h1>
+                <p class="text-[10px] text-slate-400">DXF 向量解析生成 • 3D 即時聯動防穿透</p>
+            </div>
+        </div>
+        <div class="flex items-center space-x-3">
+            <!-- 儲存與載入佈局檔案按鈕 -->
+            <button onclick="saveLayoutFile()" class="bg-indigo-600 hover:bg-indigo-500 text-white px-3 py-2 rounded-lg text-xs font-semibold transition flex items-center gap-1.5 h-9" title="儲存當前擺設配置與所有貨架佈局">
+                <i class="fa-solid fa-floppy-disk text-sm"></i>
+                儲存佈局
+            </button>
+            <button onclick="document.getElementById('layoutLoadInput').click()" class="bg-slate-800 hover:bg-slate-700 text-white px-3 py-2 rounded-lg text-xs font-semibold transition border border-slate-600 flex items-center gap-1.5 h-9" title="載入上次擺設配置與所有貨架佈局">
+                <i class="fa-solid fa-folder-open text-sm"></i>
+                載入佈局
+            </button>
+            <input type="file" id="layoutLoadInput" accept=".json" class="hidden" onchange="loadLayoutFile(event)">
+
+            <span class="w-px h-6 bg-slate-800 mx-1"></span>
+            
+            <button onclick="saveDoubleImages()" class="bg-emerald-600 hover:bg-emerald-500 text-white px-4 py-2 rounded-lg text-xs font-semibold transition flex items-center gap-1.5 shadow-lg shadow-emerald-600/20 h-9">
+                <i class="fa-solid fa-camera text-sm"></i>
+                儲存圖像 (2D平面與3D效果圖)
+            </button>
+
+            <!-- ⭐ 新增項目 5: AI生成風格及上貨效果按鈕 ⭐ -->
+            <button onclick="openAISpacePlanner()" class="bg-violet-600 hover:bg-violet-500 text-white px-4 py-2 rounded-lg text-xs font-semibold transition flex items-center gap-1.5 shadow-lg shadow-violet-600/20 h-9" title="點擊在新視窗中打開生成功能">
+                <i class="fa-solid fa-wand-magic-sparkles text-sm"></i>
+                AI生成風格及上貨效果
+            </button>
+        </div>
+    </header>
+
+    <main class="flex-1 flex overflow-hidden relative w-full h-full bg-slate-950">
+        
+        <div class="w-24 bg-slate-900 border-r border-slate-800/80 flex flex-col items-center py-4 gap-2.5 shrink-0 h-full overflow-y-auto scroller-clean">
+            <div class="text-[10px] font-bold text-indigo-400 uppercase mb-1">平面圖選擇</div>
+            <button onclick="selectFloorplan('A')" id="btn-fp-A" class="fp-btn w-16 h-12 rounded-lg border border-slate-700 bg-slate-850 hover:bg-slate-800 hover:border-indigo-500 text-xs font-bold transition flex flex-col items-center justify-center gap-0.5 text-slate-300">
+                <i class="fa-solid fa-map text-xs"></i><span>平面 A</span>
+            </button>
+            <button onclick="selectFloorplan('B')" id="btn-fp-B" class="fp-btn w-16 h-12 rounded-lg border border-slate-700 bg-slate-850 hover:bg-slate-800 text-xs font-bold transition flex flex-col items-center justify-center gap-0.5 text-slate-300">
+                <i class="fa-solid fa-map text-xs"></i><span>平面 B</span>
+            </button>
+            <button onclick="selectFloorplan('C')" id="btn-fp-C" class="fp-btn w-16 h-12 rounded-lg border border-slate-700 bg-slate-850 hover:bg-slate-800 text-xs font-bold transition flex flex-col items-center justify-center gap-0.5 text-slate-300">
+                <i class="fa-solid fa-map text-xs"></i><span>平面 C</span>
+            </button>
+            <button onclick="selectFloorplan('D')" id="btn-fp-D" class="fp-btn w-16 h-12 rounded-lg border border-slate-700 bg-slate-850 hover:bg-slate-800 text-xs font-bold transition flex flex-col items-center justify-center gap-0.5 text-slate-300">
+                <i class="fa-solid fa-map text-xs"></i><span>平面 D</span>
+            </button>
+            <button onclick="selectFloorplan('E')" id="btn-fp-E" class="fp-btn w-16 h-12 rounded-lg border border-slate-700 bg-slate-850 hover:bg-slate-800 text-xs font-bold transition flex flex-col items-center justify-center gap-0.5 text-slate-300">
+                <i class="fa-solid fa-map text-xs"></i><span>平面 E</span>
+            </button>
+            <button onclick="selectFloorplan('F')" id="btn-fp-F" class="fp-btn w-16 h-12 rounded-lg border border-slate-700 bg-slate-850 hover:bg-slate-800 text-xs font-bold transition flex flex-col items-center justify-center gap-0.5 text-slate-300">
+                <i class="fa-solid fa-map text-xs"></i><span>平面 F</span>
+            </button>
+            <button onclick="selectFloorplan('G')" id="btn-fp-G" class="fp-btn w-16 h-12 rounded-lg border border-slate-700 bg-slate-850 hover:bg-slate-800 text-xs font-bold transition flex flex-col items-center justify-center gap-0.5 text-slate-300">
+                <i class="fa-solid fa-map text-xs"></i><span>平面 G</span>
+            </button>
+            <button onclick="selectFloorplan('H')" id="btn-fp-H" class="fp-btn w-16 h-12 rounded-lg border border-slate-700 bg-slate-850 hover:bg-slate-800 text-xs font-bold transition flex flex-col items-center justify-center gap-0.5 text-slate-300">
+                <i class="fa-solid fa-map text-xs"></i><span>平面 H</span>
+            </button>
+            <div class="w-12 h-px bg-slate-800 my-1"></div>
+            <button onclick="openModal('customSpaceModal')" class="w-16 py-2.5 rounded-lg border border-dashed border-slate-700 hover:border-indigo-500 bg-slate-900/55 hover:bg-slate-800 text-[10px] font-bold text-indigo-400 flex flex-col items-center gap-1 shadow-md">
+                <i class="fa-solid fa-vector-square text-sm"></i><span>自訂空間</span>
+            </button>
+        </div>
+
+        <div class="w-24 bg-slate-900 border-r border-slate-800 flex flex-col items-center py-4 gap-2.5 shrink-0 h-full overflow-y-auto scroller-clean">
+            <div class="text-[10px] font-bold text-emerald-400 uppercase mb-1">增添貨架</div>
+            <button onclick="addShelfPreset('A')" class="shelf-btn w-16 h-12 rounded-lg border border-slate-700 bg-slate-850 hover:border-emerald-500 text-xs font-bold transition flex flex-col items-center justify-center gap-0.5 text-slate-300">
+                <i class="fa-solid fa-layer-group text-xs"></i><span>貨架 A</span>
+            </button>
+            <button onclick="addShelfPreset('B')" class="shelf-btn w-16 h-12 rounded-lg border border-slate-700 bg-slate-850 hover:border-emerald-500 text-xs font-bold transition flex flex-col items-center justify-center gap-0.5 text-slate-300">
+                <i class="fa-solid fa-layer-group text-xs"></i><span>貨架 B</span>
+            </button>
+            <button onclick="addShelfPreset('C')" class="shelf-btn w-16 h-12 rounded-lg border border-slate-700 bg-slate-850 hover:border-emerald-500 text-xs font-bold transition flex flex-col items-center justify-center gap-0.5 text-slate-300">
+                <i class="fa-solid fa-layer-group text-xs"></i><span>貨架 C</span>
+            </button>
+            <button onclick="addShelfPreset('D')" class="shelf-btn w-16 h-12 rounded-lg border border-slate-700 bg-slate-850 hover:border-emerald-500 text-xs font-bold transition flex flex-col items-center justify-center gap-0.5 text-slate-300">
+                <i class="fa-solid fa-layer-group text-xs"></i><span>貨架 D</span>
+            </button>
+            <button onclick="addShelfPreset('E')" class="shelf-btn w-16 h-12 rounded-lg border border-slate-700 bg-slate-850 hover:border-emerald-500 text-xs font-bold transition flex flex-col items-center justify-center gap-0.5 text-slate-300">
+                <i class="fa-solid fa-layer-group text-xs"></i><span>貨架 E</span>
+            </button>
+            <button onclick="addShelfPreset('F')" class="shelf-btn w-16 h-12 rounded-lg border border-slate-700 bg-slate-850 hover:border-emerald-500 text-xs font-bold transition flex flex-col items-center justify-center gap-0.5 text-slate-300">
+                <i class="fa-solid fa-layer-group text-xs"></i><span>貨架 F</span>
+            </button>
+            <button onclick="addShelfPreset('G')" class="shelf-btn w-16 h-12 rounded-lg border border-slate-700 bg-slate-850 hover:border-emerald-500 text-xs font-bold transition flex flex-col items-center justify-center gap-0.5 text-slate-300">
+                <i class="fa-solid fa-layer-group text-xs"></i><span>貨架 G</span>
+            </button>
+            <button onclick="addShelfPreset('H')" class="shelf-btn w-16 h-12 rounded-lg border border-slate-700 bg-slate-850 hover:border-emerald-500 text-xs font-bold transition flex flex-col items-center justify-center gap-0.5 text-slate-300">
+                <i class="fa-solid fa-layer-group text-xs"></i><span>貨架 H</span>
+            </button>
+        </div>
+
+        <div class="flex-1 flex overflow-hidden h-full">
+            <div class="w-1/2 p-4 flex flex-col border-r border-slate-800 bg-slate-900/50 h-full">
+                <div class="flex items-center justify-between mb-3 px-1 shrink-0">
+                    <div class="flex items-center gap-2">
+                        <span class="w-2.5 h-2.5 rounded-full bg-emerald-500"></span>
+                        <h2 class="text-xs font-bold uppercase tracking-wider text-slate-300">2D 平面圖視窗</h2>
+                    </div>
+                    <div class="flex items-center gap-2 text-[10px] text-slate-400">
+                        <span><i class="fa-solid fa-mouse-pointer text-indigo-400"></i> 左鍵/右鍵拖曳平移</span> |
+                        <span><i class="fa-solid fa-rotate-right text-emerald-400"></i> 中鍵滾動縮放</span>
+                    </div>
+                </div>
+
+                <div class="flex-1 bg-slate-950 rounded-xl border border-slate-800 relative overflow-hidden shadow-inner">
+                    <canvas id="floorplanCanvas" class="absolute inset-0 w-full h-full cursor-grab active:cursor-grabbing"></canvas>
+                    
+                    <div class="absolute bottom-4 left-4 right-4 bg-slate-900/95 backdrop-blur-md border border-slate-700/50 rounded-lg p-2.5 flex items-center justify-between text-[11px] text-slate-300 z-10">
+                        <div class="flex items-center gap-3">
+                            <span id="selectedObjectName" class="font-semibold text-indigo-400">未選取物件</span>
+                            <span id="collisionAlert" class="text-rose-400 font-bold hidden flex items-center gap-1 animate-bounce">
+                                <i class="fa-solid fa-triangle-exclamation"></i> 碰撞阻擋！
+                            </span>
+                        </div>
+                        <div class="flex gap-1.5">
+                            <button id="rotateLeftBtn" class="bg-slate-800 hover:bg-slate-700 p-1 px-2 rounded border border-slate-700 transition" title="逆時針轉 45°">
+                                <i class="fa-solid fa-rotate-left text-slate-300"></i> -45°
+                            </button>
+                            <button id="rotateRightBtn" class="bg-slate-800 hover:bg-slate-700 p-1 px-2 rounded border border-slate-700 transition" title="順時針轉 45°">
+                                <i class="fa-solid fa-rotate-right text-slate-300"></i> +45°
+                            </button>
+                            <button id="mirrorObjectBtn" class="bg-slate-800 hover:bg-slate-700 p-1 px-2 rounded border border-slate-700 transition" title="前後水平鏡像切換">
+                                <i class="fa-solid fa-arrows-left-right text-slate-300"></i> 鏡像
+                            </button>
+                            <button id="deleteObjectBtn" class="bg-rose-950/50 hover:bg-rose-900 border border-rose-800 text-rose-300 p-1 px-2 rounded transition">
+                                <i class="fa-solid fa-trash-can"></i> 刪除
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- ⭐ 修改項目 4: 取消縮小功能按鈕下方不知名(復位)按鈕 ⭐ -->
+                    <div class="absolute top-4 right-4 flex flex-col gap-1.5 z-10">
+                        <button id="zoomInBtn" class="bg-slate-800/90 hover:bg-slate-700 text-slate-200 w-8 h-8 rounded-lg border border-slate-700 transition"><i class="fa-solid fa-magnifying-glass-plus"></i></button>
+                        <button id="zoomOutBtn" class="bg-slate-800/90 hover:bg-slate-700 text-slate-200 w-8 h-8 rounded-lg border border-slate-700 transition"><i class="fa-solid fa-magnifying-glass-minus"></i></button>
+                    </div>
+                </div>
+            </div>
+
+            <div class="w-1/2 p-4 flex flex-col bg-slate-900/30 h-full">
+                <div class="flex items-center justify-between mb-3 px-1 shrink-0">
+                    <div class="flex items-center gap-2">
+                        <span class="w-2.5 h-2.5 rounded-full bg-indigo-500 animate-pulse"></span>
+                        <h2 class="text-xs font-bold uppercase tracking-wider text-slate-300">3D 即時預覽效果圖</h2>
+                    </div>
+                    <span class="text-[10px] text-slate-500"><i class="fa-solid fa-camera"></i> 滑鼠右鍵旋轉 / 中鍵縮放</span>
+                </div>
+
+                <div class="flex-1 bg-slate-950 rounded-xl border border-slate-800 relative overflow-hidden shadow-inner" id="threeContainer">
+                    <div id="threeLoading" class="absolute inset-0 bg-slate-950/80 backdrop-blur-sm flex flex-col items-center justify-center z-20 transition-opacity duration-300 pointer-events-none">
+                        <i class="fa-solid fa-circle-notch text-indigo-500 text-3xl animate-spin mb-2"></i>
+                        <p class="text-xs text-slate-400">正在渲染高品質 3D 場景...</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <div id="loadingOverlay" class="fixed inset-0 bg-slate-950/90 backdrop-blur-md z-[100] hidden flex-col items-center justify-center">
+        <div class="relative w-20 h-20 mb-4">
+            <div class="absolute inset-0 border-4 border-indigo-500/20 rounded-full"></div>
+            <div class="absolute inset-0 border-4 border-indigo-500 border-t-transparent rounded-full animate-spin"></div>
+            <i class="fa-solid fa-eye text-indigo-400 text-2xl absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2"></i>
+        </div>
+        <h3 id="loadingText" class="text-lg font-bold text-white tracking-widest text-center">正在讀取 DXF 向量圖層數據...</h3>
+        <p class="text-xs text-slate-400 mt-2">自動轉換 FLOOR (空間) • WALL (牆體) • COLUMN (柱結構)</p>
+    </div>
+
+    <div id="customSpaceModal" class="fixed inset-0 bg-slate-950/80 backdrop-blur-sm z-50 hidden opacity-0 transition-opacity flex items-center justify-center">
+        <div class="bg-slate-900 border border-slate-800 rounded-2xl w-full max-w-sm overflow-hidden shadow-2xl transform scale-95 transition-transform">
+            <div class="px-6 py-4 border-b border-slate-800 flex justify-between items-center bg-slate-950/50">
+                <h3 class="text-sm font-bold text-white"><i class="fa-solid fa-vector-square text-indigo-500"></i> 自訂空間尺寸</h3>
+                <button onclick="closeModal('customSpaceModal')" class="text-slate-400 hover:text-white"><i class="fa-solid fa-xmark text-lg"></i></button>
+            </div>
+            <form id="customSpaceForm" class="p-6 space-y-4">
+                <div>
+                    <label class="block text-[10px] font-semibold text-slate-400 mb-1.5">長度 (mm)</label>
+                    <input type="number" id="customWidth" required min="1000" max="60000" value="12000" class="w-full bg-slate-950 border border-slate-800 rounded-lg px-3 py-2 text-slate-200 text-xs">
+                </div>
+                <div>
+                    <label class="block text-[10px] font-semibold text-slate-400 mb-1.5">寬度 (mm)</label>
+                    <input type="number" id="customHeight" required min="1000" max="60000" value="8500" class="w-full bg-slate-950 border border-slate-800 rounded-lg px-3 py-2 text-slate-200 text-xs">
+                </div>
+                <div class="flex justify-end gap-3 pt-2">
+                    <button type="button" onclick="closeModal('customSpaceModal')" class="bg-slate-800 text-slate-300 px-4 py-2 rounded-lg text-xs">取消</button>
+                    <button type="submit" class="bg-indigo-600 text-white px-5 py-2 rounded-lg text-xs font-semibold">生成畫布</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <div id="toastNotification" class="fixed bottom-6 right-6 bg-slate-900 border border-indigo-500/30 text-indigo-200 px-4 py-3 rounded-xl shadow-2xl flex items-center gap-2.5 text-xs transform translate-y-20 opacity-0 transition-all pointer-events-none z-[200]">
+        <i class="fa-solid fa-circle-info text-indigo-400"></i><span id="toastText">訊息</span>
+    </div>
+
+    <!-- ==================== JavaScript Core ==================== -->
+    <script>
+        // --- 1. Global Variables & GitHub Paths 配置 ---
+        const SCALE = 10; // 10mm = 1 pixel
+        let spaceWidth = 12000;
+        let spaceHeight = 8500;
+        let currentPlanKey = 'A';
+
+        // ⭐ 貼圖雲端路徑 ⭐
+        const GROUND_TEXTURE_PATH = "https://raw.githubusercontent.com/citistorekin/3D-Layout-Assets/refs/heads/main/Texture/Floor%20M.jpg";
+        const PILLAR_TEXTURE_PATH = "https://raw.githubusercontent.com/citistorekin/3D-Layout-Assets/refs/heads/main/Texture/Paller.jpg";
+
+        // ⭐ 預設平面配置 ⭐
+        const FLOORPLAN_PRESETS = {
+            'A': { name: '預設平面 A', autoDetect: true, path: "https://raw.githubusercontent.com/citistorekin/3D-Layout-Assets/refs/heads/main/Event%20Layout%20plan/Layout%20A.dxf", defaultW: 10730 },
+            'B': { name: '預設平面 B', autoDetect: true, path: "https://raw.githubusercontent.com/citistorekin/3D-Layout-Assets/refs/heads/main/Event%20Layout%20plan/Layout%20B.dxf", defaultW: 8000 },
+            'C': { name: '標準精品空間 C', width: 10000, height: 7500, pillars: [{ x: 5000, y: 3750, w: 600, h: 600 }] },
+            'D': { name: '大型超市空間 D', width: 15000, height: 10000, pillars: [{ x: 3000, y: 3000, w: 750, h: 750 }, { x: 7500, y: 5000, w: 750, h: 750 }] },
+            'E': { name: '旗艦展廳空間 E', width: 11000, height: 8000, pillars: [{ x: 5500, y: 4000, w: 900, h: 900 }] },
+            'F': { name: '展示商場空間 F', width: 13000, height: 8500, pillars: [{ x: 4500, y: 4250, w: 800, h: 800 }] },
+            'G': { name: '中型餐飲賣場 G', width: 9500, height: 7000, pillars: [{ x: 3000, y: 3500, w: 600, h: 600 }] },
+            'H': { name: '狹長走廊展區 H', width: 16000, height: 6000, pillars: [{ x: 4000, y: 3000, w: 650, h: 650 }] }
+        };
+
+        // ⭐ 預設貨架配置 ⭐
+        const SHELF_PRESETS = {
+            'A': { name: 'Wooden Car A', length: 1200, width: 740, height: 1370, color: '#4f46e5', style: 'glb', glbPath: 'https://raw.githubusercontent.com/citistorekin/3D-Layout-Assets/refs/heads/main/3D%20Object/wooden%20car.glb' },
+            'B': { name: '3 Layer Table B', length: 1000, width: 900, height: 1070, color: '#312e81', style: 'glb', glbPath: 'https://raw.githubusercontent.com/citistorekin/3D-Layout-Assets/refs/heads/main/3D%20Object/3%20layer%20table.glb' },
+            'C': { name: 'Small Wagon C', length: 900, width: 600, height: 800, color: '#1e3a8a', style: 'glb', glbPath: 'https://raw.githubusercontent.com/citistorekin/3D-Layout-Assets/refs/heads/main/3D%20Object/small%20wagon.glb' },
+            'D': { name: 'Wagon D', length: 1250, width: 750, height: 850, color: '#0d9488', style: 'glb', glbPath: 'https://raw.githubusercontent.com/citistorekin/3D-Layout-Assets/refs/heads/main/3D%20Object/Wagon.glb' },
+            'E': { name: 'Stall E', length: 1850, width: 600, height: 2000, color: '#0f172a', style: 'glb', glbPath: 'https://raw.githubusercontent.com/citistorekin/3D-Layout-Assets/refs/heads/main/3D%20Object/Stall.glb' },
+            'F': { name: 'Open Showcase F', length: 1800, width: 900, height: 750, color: '#b45309', style: 'glb', glbPath: 'https://raw.githubusercontent.com/citistorekin/3D-Layout-Assets/refs/heads/main/3D%20Object/open%20showcase.glb' },
+            'G': { name: 'Ice Cream Freezer G', length: 1250, width: 700, height: 850, color: '#701a75', style: 'glb', glbPath: 'https://raw.githubusercontent.com/citistorekin/3D-Layout-Assets/refs/heads/main/3D%20Object/ice%20cream%20freezer.glb' },
+            'H': { name: '輕型壁面掛鉤架 H', length: 900, width: 350, height: 1850, color: '#1e293b', style: 'shelf' }
+        };
+
+        // DXF 向量儲存結構
+        let floorPolygons = [];
+        let wallPolygons = [];
+        let barriers = [];
+        let objects = [];
+        let selectedId = null;
+
+        // Interaction State
+        let isDragging = false;
+        let dragOffset = { x: 0, y: 0 };
+        let isPanning = false;
+        let lastPanMouse = { x: 0, y: 0 };
+
+        // 2D Canvas State
+        const canvas = document.getElementById('floorplanCanvas');
+        const ctx = canvas.getContext('2d');
+        let panX = 40;
+        let panY = 40;
+        let zoom = 0.05;
+
+        // 3D Three.js State
+        let scene, camera, renderer, floorMesh, pillarsGroup, wallGroup;
+        let groundTexture = null;
+        let pillarTexture = null;
+        let threeObjects = {};
+        let is3DActive = false;
+        let lastMousePos = { x: 0, y: 0 };
+        let cameraRadius = 14000;
+        let cameraTheta = Math.PI / 4; 
+        let cameraPhi = Math.PI / 3;
+
+        // --- 3. UI Helpers ---
+        function showToast(msg) {
+            const toast = document.getElementById('toastNotification');
+            if (toast) {
+                document.getElementById('toastText').innerText = msg;
+                toast.classList.remove('translate-y-20', 'opacity-0');
+                toast.classList.add('translate-y-0', 'opacity-100');
+                setTimeout(() => {
+                    toast.classList.add('translate-y-20', 'opacity-0');
+                    toast.classList.remove('translate-y-0', 'opacity-100');
+                }, 3500);
+            }
+        }
+
+        function openModal(id) {
+            const m = document.getElementById(id);
+            if(m) {
+                m.classList.remove('hidden');
+                setTimeout(() => { m.classList.remove('opacity-0'); m.querySelector('.transform').classList.remove('scale-95'); }, 10);
+            }
+        }
+
+        function closeModal(id) {
+            const m = document.getElementById(id);
+            if(m) {
+                m.classList.add('opacity-0');
+                m.querySelector('.transform').classList.add('scale-95');
+                setTimeout(() => m.classList.add('hidden'), 300);
+            }
+        }
+
+        // 模糊層級匹配演算法
+        function matchLayer(layerName) {
+            if (!layerName) return '';
+            const upper = layerName.toUpperCase().trim();
+            if (upper.includes('FLOOR')) return 'FLOOR';
+            if (upper.includes('COLUMN') || upper.includes('COL') || upper.includes('PILLAR') || upper.includes('PIL')) return 'COLUMN';
+            if (upper.includes('WALL')) return 'WALL';
+            return '';
+        }
+
+        // --- 4. 🚀 DXF 向量解析引擎 (支援 HATCH, SPLINE 與經典 POLYLINE) 🚀 ---
+        // 🚨 移除本機上傳功能按鈕，但保留底層預設 DXF 雲端解算與解析程式，防止 Preset A & B 無法初始化 🚨
+        function handleDxfUpload(e) {
+            const file = e.target.files[0];
+            if (!file) return;
+            const reader = new FileReader();
+            reader.onload = (ev) => processDxfContent(ev.target.result, 12000);
+            reader.readAsText(file);
+        }
+
+        function parseDxfText(dxfText) {
+            const lines = dxfText.split(/\r?\n/);
+            const parsed = { floor: [], columns: [], walls: [] };
+            
+            let entities = [];
+            let currentEntity = null;
+            
+            const data = [];
+            for (let i = 0; i < lines.length; i++) {
+                const line = lines[i].trim();
+                if (line === "") continue;
+                data.push(line);
+            }
+            
+            let i = 0;
+            while (i < data.length - 1) {
+                const code = parseInt(data[i]);
+                const val = data[i+1];
+                i += 2;
+                
+                if (code === 0) {
+                    if (currentEntity) {
+                        entities.push(currentEntity);
+                        currentEntity = null;
+                    }
+                    const upperVal = val.toUpperCase().trim();
+                    if (['LINE', 'LWPOLYLINE', 'POLYLINE', 'VERTEX', 'SEQEND', 'CIRCLE', 'ARC', 'HATCH', 'SPLINE'].includes(upperVal)) {
+                        currentEntity = { 
+                            type: upperVal, 
+                            layer: '', 
+                            points: [], 
+                            x: NaN, y: NaN, 
+                            x2: NaN, y2: NaN, 
+                            r: NaN, 
+                            startAngle: NaN, endAngle: NaN 
+                        };
+                    }
+                } else if (currentEntity) {
+                    if (code === 8) {
+                        currentEntity.layer = val.toUpperCase().trim();
+                    } else if (code === 10) {
+                        const num = parseFloat(val);
+                        currentEntity.x = num;
+                        if (['LWPOLYLINE', 'VERTEX', 'HATCH', 'SPLINE'].includes(currentEntity.type)) {
+                            currentEntity.points.push({ x: num, y: NaN });
+                        }
+                    } else if (code === 20) {
+                        const num = parseFloat(val);
+                        currentEntity.y = num;
+                        if (['LWPOLYLINE', 'VERTEX', 'HATCH', 'SPLINE'].includes(currentEntity.type) && currentEntity.points.length > 0) {
+                            currentEntity.points[currentEntity.points.length - 1].y = num;
+                        }
+                    } else if (code === 11) {
+                        currentEntity.x2 = parseFloat(val);
+                    } else if (code === 21) {
+                        currentEntity.y2 = parseFloat(val);
+                    } else if (code === 40) {
+                        currentEntity.r = parseFloat(val);
+                    } else if (code === 50) {
+                        currentEntity.startAngle = parseFloat(val);
+                    } else if (code === 51) {
+                        currentEntity.endAngle = parseFloat(val);
+                    }
+                }
+            }
+            if (currentEntity) entities.push(currentEntity);
+            
+            let activePolyline = null;
+            
+            entities.forEach(ent => {
+                const layer = matchLayer(ent.layer || (activePolyline ? activePolyline.layer : ''));
+                if (layer === 'FLOOR' || layer === 'COLUMN' || layer === 'WALL') {
+                    const list = layer === 'FLOOR' ? parsed.floor : (layer === 'COLUMN' ? parsed.columns : parsed.walls);
+                    
+                    if (ent.type === 'LINE') {
+                        if (!isNaN(ent.x) && !isNaN(ent.y) && !isNaN(ent.x2) && !isNaN(ent.y2)) {
+                            list.push({ type: 'line', points: [{ x: ent.x, y: ent.y }, { x: ent.x2, y: ent.y2 }] });
+                        }
+                    } else if (['LWPOLYLINE', 'HATCH', 'SPLINE'].includes(ent.type)) {
+                        const validPts = ent.points.filter(p => !isNaN(p.x) && !isNaN(p.y));
+                        if (validPts.length > 0) {
+                            list.push({ type: 'polygon', points: validPts });
+                        }
+                    } else if (ent.type === 'POLYLINE') {
+                        activePolyline = { layer: layer, points: [] };
+                    } else if (ent.type === 'VERTEX' && activePolyline) {
+                        const validPts = ent.points.filter(p => !isNaN(p.x) && !isNaN(p.y));
+                        if (validPts.length > 0) {
+                            activePolyline.points.push(validPts[0]);
+                        }
+                    } else if (ent.type === 'CIRCLE') {
+                        if (!isNaN(ent.x) && !isNaN(ent.y) && !isNaN(ent.r)) {
+                            const pts = [];
+                            for (let a = 0; a < 32; a++) {
+                                const rad = (a / 32) * Math.PI * 2;
+                                pts.push({ x: ent.x + Math.cos(rad) * ent.r, y: ent.y + Math.sin(rad) * ent.r });
+                            }
+                            list.push({ type: 'polygon', points: pts });
+                        }
+                    } else if (ent.type === 'ARC') {
+                        if (!isNaN(ent.x) && !isNaN(ent.y) && !isNaN(ent.r) && !isNaN(ent.startAngle) && !isNaN(ent.endAngle)) {
+                            const pts = [];
+                            const startRad = (ent.startAngle * Math.PI) / 180;
+                            const endRad = (ent.endAngle * Math.PI) / 180;
+                            const diff = endRad < startRad ? (endRad + Math.PI * 2 - startRad) : (endRad - startRad);
+                            const steps = 16;
+                            for (let s = 0; s <= steps; s++) {
+                                const rad = startRad + (s / steps) * diff;
+                                pts.push({ x: ent.x + Math.cos(rad) * ent.r, y: ent.y + Math.sin(rad) * ent.r });
+                            }
+                            list.push({ type: 'line', points: pts });
+                        }
+                    }
+                }
+                
+                if (ent.type === 'SEQEND' && activePolyline) {
+                    const targetList = activePolyline.layer === 'FLOOR' ? parsed.floor : (activePolyline.layer === 'COLUMN' ? parsed.columns : parsed.walls);
+                    if (activePolyline.points.length > 0) {
+                        targetList.push({ type: 'polygon', points: activePolyline.points });
+                    }
+                    activePolyline = null;
+                }
+            });
+            
+            return parsed;
+        }
+
+        // ⭐ 拓撲向量拼接器 - 自動將零散的 ARC 與 LINE 融合成完美的封閉多邊形，重建正確空間輪廓 ⭐
+        function joinSegments(entities) {
+            if (entities.length === 0) return [];
+            
+            let closedPolys = [];
+            let openPaths = [];
+            
+            entities.forEach(ent => {
+                if (ent.points && ent.points.length > 1) {
+                    const p0 = ent.points[0];
+                    const pN = ent.points[ent.points.length - 1];
+                    const dist = Math.hypot(pN.x - p0.x, pN.y - p0.y);
+                    if (ent.type === 'polygon' && (dist < 10 || ent.points.length > 8)) {
+                        closedPolys.push(ent.points);
+                    } else {
+                        openPaths.push([...ent.points]);
+                    }
+                }
+            });
+            
+            const joined = [...closedPolys];
+            const TOLERANCE = 100.0; // 100mm (10cm) 拼接端點容差
+            
+            while (openPaths.length > 0) {
+                let current = openPaths.shift();
+                let growing = true;
+                
+                while (growing) {
+                    growing = false;
+                    let lastPt = current[current.length - 1];
+                    
+                    // 尋找能對接在尾部的線段
+                    for (let j = 0; j < openPaths.length; j++) {
+                        let nextPath = openPaths[j];
+                        let startPt = nextPath[0];
+                        let endPt = nextPath[nextPath.length - 1];
+                        
+                        if (Math.hypot(startPt.x - lastPt.x, startPt.y - lastPt.y) < TOLERANCE) {
+                            current = current.concat(nextPath.slice(1));
+                            openPaths.splice(j, 1);
+                            growing = true;
+                            break;
+                        }
+                        if (Math.hypot(endPt.x - lastPt.x, endPt.y - lastPt.y) < TOLERANCE) {
+                            const rev = [...nextPath].reverse();
+                            current = current.concat(rev.slice(1));
+                            openPaths.splice(j, 1);
+                            growing = true;
+                            break;
+                        }
+                    }
+                    
+                    if (!growing) {
+                        // 尋找能對接在頭部的線段
+                        let firstPt = current[0];
+                        for (let j = 0; j < openPaths.length; j++) {
+                            let nextPath = openPaths[j];
+                            let startPt = nextPath[0];
+                            let endPt = nextPath[nextPath.length - 1];
+                            
+                            if (Math.hypot(endPt.x - firstPt.x, endPt.y - firstPt.y) < TOLERANCE) {
+                                current = nextPath.slice(0, -1).concat(current);
+                                openPaths.splice(j, 1);
+                                growing = true;
+                                break;
+                            }
+                            if (Math.hypot(startPt.x - firstPt.x, startPt.y - firstPt.y) < TOLERANCE) {
+                                const rev = [...nextPath].reverse();
+                                current = rev.slice(0, -1).concat(current);
+                                openPaths.splice(j, 1);
+                                growing = true;
+                                break;
+                            }
+                        }
+                    }
+                }
+                
+                if (current.length > 2) {
+                    const p0 = current[0];
+                    const pN = current[current.length - 1];
+                    // 如果首尾沒完全相連，手動推入首點強制封閉多邊形
+                    if (Math.hypot(pN.x - p0.x, pN.y - p0.y) > 5) {
+                        current.push({ x: p0.x, y: p0.y });
+                    }
+                    joined.push(current);
+                }
+            }
+            return joined;
+        }
+
+        // 精準重寫空間範圍計算，優先使用 FLOOR 圖層決定空間尺寸，防禦 Outlier 線條拉伸
+        function processDxfContent(dxfText, defaultW) {
+            const overlay = document.getElementById('loadingOverlay');
+            overlay.classList.remove('hidden'); overlay.style.display = 'flex';
+            
+            setTimeout(() => {
+                try {
+                    const parsed = parseDxfText(dxfText);
+                    let minX = Infinity, maxX = -Infinity, minY = Infinity, maxY = -Infinity;
+
+                    const updateBounds = (pt) => {
+                        if (pt.x < minX) minX = pt.x; if (pt.x > maxX) maxX = pt.x;
+                        if (pt.y < minY) minY = pt.y; if (pt.y > maxY) maxY = pt.y;
+                    };
+
+                    // 優先使用 FLOOR 向量層作為尺寸邊界基底
+                    if (parsed.floor.length > 0) {
+                        parsed.floor.forEach(ent => ent.points.forEach(updateBounds));
+                    }
+                    
+                    if ((minX === Infinity || maxX === -Infinity) && parsed.walls.length > 0) {
+                        parsed.walls.forEach(ent => ent.points.forEach(updateBounds));
+                    }
+
+                    if ((minX === Infinity || maxX === -Infinity) && parsed.columns.length > 0) {
+                        parsed.columns.forEach(ent => ent.points.forEach(updateBounds));
+                    }
+
+                    if (minX === Infinity || maxX === -Infinity) {
+                        minX = 0; maxX = defaultW; minY = 0; maxY = defaultW * 0.7;
+                    }
+
+                    spaceWidth = maxX - minX;
+                    spaceHeight = maxY - minY;
+
+                    const normPt = (pt) => ({ x: pt.x - minX, y: pt.y - minY });
+
+                    // 導入拼接模組，完美合併 LINE 與 ARC
+                    floorPolygons = joinSegments(parsed.floor).map(poly => poly.map(normPt));
+                    wallPolygons = joinSegments(parsed.walls).map(poly => poly.map(normPt));
+
+                    if (floorPolygons.length === 0 && wallPolygons.length > 0) {
+                        floorPolygons = wallPolygons;
+                    }
+
+                    barriers = parsed.columns.map(ent => {
+                        const normPts = ent.points.map(normPt);
+                        let cMinX = Infinity, cMaxX = -Infinity, cMinY = Infinity, cMaxY = -Infinity;
+                        normPts.forEach(pt => {
+                            if (pt.x < cMinX) cMinX = pt.x; if (pt.x > cMaxX) cMaxX = pt.x;
+                            if (pt.y < cMinY) cMinY = pt.y; if (pt.y > cMaxY) cMaxY = pt.y;
+                        });
+                        const w = cMaxX - cMinX, h = cMaxY - cMinY;
+                        return {
+                            x: (cMinX + cMaxX) / 2,
+                            y: (cMinY + cMaxY) / 2,
+                            w: w > 0 ? w : 600,
+                            h: h > 0 ? h : 600,
+                            angle: 0,
+                            type: 'pillar',
+                            polygon: normPts
+                        };
+                    });
+
+                    buildSystemState();
+                    overlay.style.display = 'none';
+                    showToast(`✅ DXF 空間向量解算與弧線段完美重組拼接！`);
+                } catch (err) {
+                    overlay.style.display = 'none';
+                    showToast("⚠️ DXF 檔案結構解析失敗，將退回備用空間。");
+                    spaceWidth = defaultW; spaceHeight = defaultW * 0.7; barriers = []; buildSystemState();
+                }
+            }, 300);
+        }
+
+        function loadFloorplanDXF(url, defaultW) {
+            const overlay = document.getElementById('loadingOverlay');
+            overlay.classList.remove('hidden'); overlay.style.display = 'flex';
+            
+            fetch(url)
+                .then(r => { if(!r.ok) throw new Error(); return r.text(); })
+                .then(txt => processDxfContent(txt, defaultW))
+                .catch(() => {
+                    overlay.style.display = 'none';
+                    showToast("⚠️ 無法載入 GitHub 的 DXF 空間，已套用預設平面尺寸。");
+                    spaceWidth = defaultW; spaceHeight = defaultW * 0.7; barriers = []; buildSystemState();
+                });
+        }
+
+        // --- 4.5 🚀 智慧存檔與讀取模組 🚀 ---
+        function saveLayoutFile() {
+            const dataStr = JSON.stringify({
+                spaceWidth,
+                spaceHeight,
+                currentPlanKey,
+                floorPolygons,
+                wallPolygons,
+                barriers,
+                objects
+            }, null, 2);
+            const blob = new Blob([dataStr], { type: "application/json" });
+            const url = URL.createObjectURL(blob);
+            const link = document.createElement('a');
+            link.download = `3D_Shelf_Layout_${Date.now()}.json`;
+            link.href = url;
+            link.click();
+            URL.revokeObjectURL(url);
+            showToast("💾 佈置檔案與所有貨架配置已成功導出儲存！");
+        }
+
+        function loadLayoutFile(e) {
+            const file = e.target.files[0];
+            if (!file) return;
+            const reader = new FileReader();
+            reader.onload = (ev) => {
+                try {
+                    const data = JSON.parse(ev.target.result);
+                    if (data.spaceWidth && data.spaceHeight) {
+                        spaceWidth = data.spaceWidth;
+                        spaceHeight = data.spaceHeight;
+                        currentPlanKey = data.currentPlanKey || 'Custom';
+                        floorPolygons = data.floorPolygons || [];
+                        wallPolygons = data.wallPolygons || [];
+                        barriers = data.barriers || [];
+                        objects = data.objects || [];
+                        
+                        buildSystemState(true); 
+                        showToast("📂 佈局存檔載入成功，已完全恢復貨架與佈置配置！");
+                    } else {
+                        showToast("❌ 無效的佈局備份檔！");
+                    }
+                } catch (err) {
+                    showToast("❌ 讀取佈建備份檔出錯！");
+                }
+            };
+            reader.readAsText(file);
+        }
+
+        // 射線判定算法：精準計算點是否在封閉多邊形內部
+        function isPointInPolygon(pt, polygon) {
+            let inside = false;
+            for (let i = 0, j = polygon.length - 1; i < polygon.length; j = i++) {
+                const xi = polygon[i].x, yi = polygon[i].y;
+                const xj = polygon[j].x, yj = polygon[j].y;
+                const intersect = ((yi > pt.y) !== (yj > pt.y))
+                    && (pt.x < (xj - xi) * (pt.y - yi) / (yj - yi || 1) + xi);
+                if (intersect) inside = !inside;
+            }
+            return inside;
+        }
+
+        // --- 5. Geometry / Collision ---
+        function checkOBBCollision(boxA, boxB) {
+            const getVertices = (box) => {
+                const halfW = box.length / 2, halfH = box.width / 2;
+                const rad = (box.angle * Math.PI) / 180, cos = Math.cos(rad), sin = Math.sin(rad);
+                return [
+                    { x: -halfW, y: -halfH }, { x: halfW, y: -halfH },
+                    { x: halfW, y: halfH }, { x: -halfW, y: halfH }
+                ].map(v => ({ x: box.x + (v.x * cos - v.y * sin), y: box.y + (v.x * sin + v.y * cos) }));
+            };
+            const getAxes = (vertices) => {
+                const axes = [];
+                for (let i = 0; i < vertices.length; i++) {
+                    const p1 = vertices[i], p2 = vertices[(i + 1) % vertices.length];
+                    const edge = { x: p2.x - p1.x, y: p2.y - p1.y };
+                    const normal = { x: -edge.y, y: edge.x };
+                    const len = Math.sqrt(normal.x * normal.x + normal.y * normal.y);
+                    axes.push({ x: normal.x / len, y: normal.y / len });
+                }
+                return axes;
+            };
+            const project = (vertices, axis) => {
+                let min = Infinity, max = -Infinity;
+                for (const v of vertices) {
+                    const dot = v.x * axis.x + v.y * axis.y;
+                    if (dot < min) min = dot;
+                    if (dot > max) max = dot;
+                }
+                return { min, max };
+            };
+            const overlap = (p1, p2) => !(p1.max < p2.min || p2.max < p1.min);
+            
+            const vA = getVertices(boxA), vB = getVertices(boxB);
+            const axes = [...getAxes(vA), ...getAxes(vB)];
+            for (const axis of axes) {
+                if (!overlap(project(vA, axis), project(vB, axis))) return false;
+            }
+            return true;
+        }
+
+        // 解決: 高精物理極限邊界控制，貨架 4 個角必須完全处于地面多邊形內部，徹底防範移出邊界
+        function isPositionAllowed(targetObj, objectList, barrierList) {
+            const halfW = targetObj.length / 2, halfH = targetObj.width / 2;
+            const rad = (targetObj.angle * Math.PI) / 180;
+            const cos = Math.cos(rad), sin = Math.sin(rad);
+            
+            const corners = [
+                { x: -halfW, y: -halfH }, { x: halfW, y: -halfH },
+                { x: halfW, y: halfH }, { x: -halfW, y: halfH }
+            ].map(v => ({
+                x: targetObj.x + (v.x * cos - v.y * sin),
+                y: targetObj.y + (v.x * sin + v.y * cos)
+            }));
+
+            // 1. 多邊形極限邊緣圍牆校驗
+            if (floorPolygons && floorPolygons.length > 0) {
+                for (const corner of corners) {
+                    let insideFloor = false;
+                    for (const poly of floorPolygons) {
+                        if (isPointInPolygon(corner, poly)) {
+                            insideFloor = true;
+                            break;
+                        }
+                    }
+                    if (!insideFloor) return false; 
+                }
+            } else {
+                // 傳統矩形邊界防護
+                for (const corner of corners) {
+                    if (corner.x < 0 || corner.x > spaceWidth || corner.y < 0 || corner.y > spaceHeight) {
+                        return false;
+                    }
+                }
+            }
+
+            // 2. 貨架與貨架間的碰撞防護
+            for (const other of objectList) {
+                if (other.id !== targetObj.id && checkOBBCollision(targetObj, other)) return false;
+            }
+            
+            // 3. 貨架與柱子間的碰撞防護
+            for (const bar of barrierList) {
+                if (checkOBBCollision(targetObj, { x: bar.x, y: bar.y, length: bar.w, width: bar.h, angle: (bar.angle * 180)/Math.PI })) return false;
+            }
+            return true;
+        }
+
+        // 靠牆與柱體自動磁吸附修正 - 貼合邊緣時自動留出 2mm 微縮冗餘防碰撞，杜絕被牆排斥在外的死鎖
+        function getSnappedPosition(obj, tx, ty) {
+            const SNAP_THRESHOLD = 150; // 150mm 吸附半徑
+            const SAFE_MARGIN = 2; // 2mm 安全微縮，防止浮點數碰撞引擎誤判
+            const rad = (obj.angle * Math.PI) / 180;
+            const cos = Math.abs(Math.cos(rad)), sin = Math.abs(Math.sin(rad));
+            const halfW = (obj.length * cos + obj.width * sin) / 2;
+            const halfH = (obj.length * sin + obj.width * cos) / 2;
+
+            let snappedX = tx;
+            let snappedY = ty;
+
+            // 1. 貼合外圍牆壁邊緣
+            if (Math.abs(tx - halfW) < SNAP_THRESHOLD) {
+                snappedX = halfW + SAFE_MARGIN;
+            } else if (Math.abs(tx + halfW - spaceWidth) < SNAP_THRESHOLD) {
+                snappedX = spaceWidth - halfW - SAFE_MARGIN;
+            }
+
+            if (Math.abs(ty - halfH) < SNAP_THRESHOLD) {
+                snappedY = halfH + SAFE_MARGIN;
+            } else if (Math.abs(ty + halfH - spaceHeight) < SNAP_THRESHOLD) {
+                snappedY = spaceHeight - halfH - SAFE_MARGIN;
+            }
+
+            // 2. 貼合結構柱子邊緣
+            barriers.forEach(bar => {
+                const bLeft = bar.x - bar.w / 2;
+                const bRight = bar.x + bar.w / 2;
+                const bTop = bar.y - bar.h / 2;
+                const bBottom = bar.y + bar.h / 2;
+
+                if (ty + halfH > bTop && ty - halfH < bBottom) {
+                    if (Math.abs((tx + halfW) - bLeft) < SNAP_THRESHOLD) {
+                        snappedX = bLeft - halfW - SAFE_MARGIN;
+                    } else if (Math.abs((tx - halfW) - bRight) < SNAP_THRESHOLD) {
+                        snappedX = bRight + halfW + SAFE_MARGIN;
+                    }
+                }
+
+                if (tx + halfW > bLeft && tx - halfW < bRight) {
+                    if (Math.abs((ty + halfH) - bTop) < SNAP_THRESHOLD) {
+                        snappedY = bTop - halfH - SAFE_MARGIN;
+                    } else if (Math.abs((ty - halfH) - bBottom) < SNAP_THRESHOLD) {
+                        snappedY = bBottom + halfH + SAFE_MARGIN;
+                    }
+                }
+            });
+
+            return { x: snappedX, y: snappedY };
+        }
+
+        // --- 6. 2D Canvas Drawing & Scale-Independent Coordinates ---
+        function resizeCanvas() {
+            const container = canvas.parentElement;
+            if (container) {
+                canvas.width = container.clientWidth || 500;
+                canvas.height = container.clientHeight || 500;
+            }
+            resetCanvasView();
+            drawFloorplan();
+        }
+
+        function resetCanvasView() {
+            const wRatio = canvas.width / (spaceWidth / SCALE);
+            const hRatio = canvas.height / (spaceHeight / SCALE);
+            zoom = Math.min(wRatio, hRatio) * 0.65; 
+            panX = (canvas.width - (spaceWidth / SCALE) * zoom) / 2;
+            panY = (canvas.height - (spaceHeight / SCALE) * zoom) / 2 + 25; 
+        }
+
+        function getMousePos(e) {
+            const rect = canvas.getBoundingClientRect();
+            const scaleX = canvas.width / rect.width;
+            const scaleY = canvas.height / rect.height;
+            const clientX = e.clientX ?? (e.touches && e.touches[0] ? e.touches[0].clientX : 0);
+            const clientY = e.clientY ?? (e.touches && e.touches[0] ? e.touches[0].clientY : 0);
+            return { x: (clientX - rect.left) * scaleX, y: (clientY - rect.top) * scaleY };
+        }
+
+        function canvasToWorld(e) {
+            const m = getMousePos(e);
+            return { x: ((m.x - panX) / zoom) * SCALE, y: ((m.y - panY) / zoom) * SCALE };
+        }
+
+        // ⭐ BUG 3 解決: 工業級 CAD 雙段中斷線標注引擎，數值永不與線重疊 ⭐
+        function drawDimensionLine(ctxTarget, x1, y1, x2, y2, text, offset, isVert, isExport = false) {
+            ctxTarget.save();
+            ctxTarget.strokeStyle = ctxTarget.fillStyle = '#22c55e';
+            const baseScale = isExport ? 2.5 : 1.75;
+            ctxTarget.lineWidth = 2.0 * baseScale;
+            
+            const arrowSize = 6 * baseScale;
+            const fontSize = Math.round(13 * baseScale);
+            const dimOffset = offset * baseScale * 0.95;
+
+            // 預先測量文字寬度以精確留白
+            ctxTarget.font = `bold ${fontSize}px Arial`;
+            const tWidth = ctxTarget.measureText(text).width;
+            const textGap = tWidth + 12 * baseScale; // 為文字留出 12 像素安全間隔
+
+            if (!isVert) {
+                const ly = y1 + dimOffset;
+                const midX = (x1 + x2) / 2;
+
+                // 繪製垂直延伸輔助線
+                ctxTarget.beginPath(); 
+                ctxTarget.moveTo(x1, y1); 
+                ctxTarget.lineTo(x1, ly + (dimOffset > 0 ? 8 * baseScale : -8 * baseScale)); 
+                ctxTarget.moveTo(x2, y2); 
+                ctxTarget.lineTo(x2, ly + (dimOffset > 0 ? 8 * baseScale : -8 * baseScale)); 
+                ctxTarget.stroke();
+
+                // 核心優化：如果標注線足夠長，中間斷開為兩段，防止穿過文字；過短則繪製單線
+                ctxTarget.beginPath();
+                if (Math.abs(x2 - x1) > textGap * 1.5) {
+                    ctxTarget.moveTo(x1, ly);
+                    ctxTarget.lineTo(midX - textGap / 2, ly);
+                    ctxTarget.moveTo(midX + textGap / 2, ly);
+                    ctxTarget.lineTo(x2, ly);
+                } else {
+                    ctxTarget.moveTo(x1, ly);
+                    ctxTarget.lineTo(x2, ly);
+                }
+                ctxTarget.stroke();
+
+                // 繪製左右兩端指向外的綠色精準箭頭
+                ctxTarget.beginPath(); 
+                ctxTarget.moveTo(x1, ly); 
+                ctxTarget.lineTo(x1 + arrowSize * 2, ly - arrowSize); 
+                ctxTarget.lineTo(x1 + arrowSize * 2, ly + arrowSize); 
+                ctxTarget.fill();
+
+                ctxTarget.beginPath(); 
+                ctxTarget.moveTo(x2, ly); 
+                ctxTarget.lineTo(x2 - arrowSize * 2, ly - arrowSize); 
+                ctxTarget.lineTo(x2 - arrowSize * 2, ly + arrowSize); 
+                ctxTarget.fill();
+                
+                // 完美定位繪製數值與完美融入背景的遮罩
+                ctxTarget.textAlign = 'center'; 
+                ctxTarget.textBaseline = 'middle';
+                
+                // 遮罩防護：使用與2D底圖一致的深藍色遮罩
+                ctxTarget.fillStyle = '#0f172a';
+                ctxTarget.fillRect(midX - tWidth/2 - 4 * baseScale, ly - fontSize/2 - 2 * baseScale, tWidth + 8 * baseScale, fontSize + 4 * baseScale);
+                
+                ctxTarget.fillStyle = '#22c55e';
+                ctxTarget.fillText(text, midX, ly);
+
+            } else {
+                const lx = x1 + dimOffset;
+                const midY = (y1 + y2) / 2;
+
+                // 繪製水平延伸輔助線
+                ctxTarget.beginPath(); 
+                ctxTarget.moveTo(x1, y1); 
+                ctxTarget.lineTo(lx + (dimOffset > 0 ? 8 * baseScale : -8 * baseScale), y1); 
+                ctxTarget.moveTo(x2, y2); 
+                ctxTarget.lineTo(lx + (dimOffset > 0 ? 8 * baseScale : -8 * baseScale), y2); 
+                ctxTarget.stroke();
+
+                // 核心優化：垂直尺寸標注線中斷設計
+                ctxTarget.beginPath();
+                if (Math.abs(y2 - y1) > textGap * 1.5) {
+                    ctxTarget.moveTo(lx, y1);
+                    ctxTarget.lineTo(lx, midY - textGap / 2);
+                    ctxTarget.moveTo(lx, midY + textGap / 2);
+                    ctxTarget.lineTo(lx, y2);
+                } else {
+                    ctxTarget.moveTo(lx, y1);
+                    ctxTarget.lineTo(lx, y2);
+                }
+                ctxTarget.stroke();
+
+                // 繪製上下兩端指向外的綠色精準箭頭
+                ctxTarget.beginPath(); 
+                ctxTarget.moveTo(lx, y1); 
+                ctxTarget.lineTo(lx - arrowSize, y1 + arrowSize * 2); 
+                ctxTarget.lineTo(lx + arrowSize, y1 + arrowSize * 2); 
+                ctxTarget.fill();
+
+                ctxTarget.beginPath(); 
+                ctxTarget.moveTo(lx, y2); 
+                ctxTarget.lineTo(lx - arrowSize, y2 - arrowSize * 2); 
+                ctxTarget.lineTo(lx + arrowSize, y2 - arrowSize * 2); 
+                ctxTarget.fill();
+
+                // 旋轉 90 度垂直繪製文字
+                ctxTarget.save(); 
+                ctxTarget.translate(lx, midY); 
+                ctxTarget.rotate(Math.PI / 2); 
+                ctxTarget.textAlign = 'center'; 
+                ctxTarget.textBaseline = 'middle';
+                
+                // 遮罩防護
+                ctxTarget.fillStyle = '#0f172a';
+                ctxTarget.fillRect(-tWidth/2 - 4 * baseScale, -fontSize/2 - 2 * baseScale, tWidth + 8 * baseScale, fontSize + 4 * baseScale);
+                
+                ctxTarget.fillStyle = '#22c55e';
+                ctxTarget.fillText(text, 0, 0);
+                ctxTarget.restore();
+            }
+            ctxTarget.restore();
+        }
+
+        function drawAll2DObjects(ctxTarget, scaleDivider, isExport) {
+            // 繪製柱子
+            barriers.forEach(bar => {
+                if (bar.type === 'pillar') {
+                    ctxTarget.save();
+                    ctxTarget.fillStyle = '#1e293b';
+                    ctxTarget.strokeStyle = '#64748b';
+                    ctxTarget.lineWidth = isExport ? 3 : 1.5;
+
+                    if (bar.polygon && bar.polygon.length > 2) {
+                        ctxTarget.beginPath();
+                        ctxTarget.moveTo(bar.polygon[0].x / scaleDivider, bar.polygon[0].y / scaleDivider);
+                        for (let p = 1; p < bar.polygon.length; p++) {
+                            ctxTarget.lineTo(bar.polygon[p].x / scaleDivider, bar.polygon[p].y / scaleDivider);
+                        }
+                        ctxTarget.closePath();
+                        ctxTarget.fill();
+                        ctxTarget.stroke();
+                    } else {
+                        ctxTarget.translate(bar.x / scaleDivider, bar.y / scaleDivider);
+                        ctxTarget.fillRect(-bar.w / 2 / scaleDivider, -bar.h / 2 / scaleDivider, bar.w / scaleDivider, bar.h / scaleDivider);
+                        ctxTarget.strokeRect(-bar.w / 2 / scaleDivider, -bar.h / 2 / scaleDivider, bar.w / scaleDivider, bar.h / scaleDivider);
+                    }
+                    ctxTarget.restore();
+                }
+            });
+
+            // 繪製物件
+            objects.forEach(obj => {
+                const isSel = (!isExport && obj.id === selectedId);
+                const strokeWidth = isSel ? 4 : (isExport ? 3 : 1.5);
+                
+                ctxTarget.save(); 
+                ctxTarget.translate(obj.x / scaleDivider, obj.y / scaleDivider); 
+                ctxTarget.rotate((obj.angle * Math.PI) / 180);
+                
+                ctxTarget.fillStyle = isSel ? '#4f46e5' : obj.color; 
+                ctxTarget.fillRect(-obj.length / 2 / scaleDivider, -obj.width / 2 / scaleDivider, obj.length / scaleDivider, obj.width / scaleDivider);
+                
+                ctxTarget.strokeStyle = isSel ? '#818cf8' : '#64748b'; 
+                ctxTarget.lineWidth = strokeWidth;
+                const innerW = obj.length / scaleDivider - strokeWidth / scaleDivider;
+                const innerH = obj.width / scaleDivider - strokeWidth / scaleDivider;
+                ctxTarget.strokeRect(-innerW / 2, -innerH / 2, innerW, innerH);
+                
+                ctxTarget.strokeStyle = '#e2e8f0'; 
+                ctxTarget.lineWidth = isExport ? 5 : 3; 
+                ctxTarget.beginPath(); 
+                ctxTarget.moveTo(-obj.length / 2 / scaleDivider + 10, -obj.width / 2 / scaleDivider); 
+                ctxTarget.lineTo(obj.length / 2 / scaleDivider - 10, -obj.width / 2 / scaleDivider); 
+                ctxTarget.stroke();
+                ctxTarget.restore();
+
+                ctxTarget.save(); ctxTarget.translate(obj.x / scaleDivider, obj.y / scaleDivider);
+                ctxTarget.font = `300 ${isExport ? 20 : 12}px "Microsoft JhengHei"`; 
+                const displayString = obj.mirrored ? `${obj.name} (M)` : obj.name;
+                const txtW = ctxTarget.measureText(displayString).width;
+                ctxTarget.fillStyle = 'rgba(15, 23, 42, 0.9)'; ctxTarget.fillRect(-txtW/2 - (isExport?12:8), -(isExport?18:12), txtW + (isExport?24:16), (isExport?36:24));
+                ctxTarget.strokeStyle = isSel ? '#818cf8' : 'rgba(255, 255, 255, 0.15)'; ctxTarget.lineWidth = isExport?2:1; ctxTarget.strokeRect(-txtW/2 - (isExport?12:8), -(isExport?18:12), txtW + (isExport?24:16), (isExport?36:24));
+                ctxTarget.fillStyle = '#f8fafc'; ctxTarget.textAlign = 'center'; ctxTarget.textBaseline = 'middle'; ctxTarget.fillText(displayString, 0, 0);
+                ctxTarget.fillStyle = '#94a3b8'; ctxTarget.font = `${isExport ? 14 : 9}px Arial`; 
+                ctxTarget.fillText(`${obj.length}x${obj.width}x${obj.height}mm`, 0, isExport ? 30 : 20); 
+                ctxTarget.restore();
+            });
+        }
+
+        // ⭐ 修改項目 2: 經下載圖紙中的增添貨架統計清單文字、標題全部放大 1.6 倍，並加寬行高及位置 ⭐
+        function drawStatsFooter(tempCtx, presetName) {
+            tempCtx.fillStyle = '#090d16'; tempCtx.fillRect(0, 1260, 2560, 180);
+            tempCtx.strokeStyle = '#1e293b'; tempCtx.lineWidth = 4;
+            tempCtx.beginPath(); tempCtx.moveTo(0, 1260); tempCtx.lineTo(2560, 1260); tempCtx.stroke();
+            
+            tempCtx.fillStyle = '#38bdf8'; tempCtx.font = 'bold 38px "Microsoft JhengHei", Arial'; // 放大 1.6 倍 (24px -> 38px)
+            tempCtx.textAlign = 'left'; tempCtx.textBaseline = 'middle';
+            tempCtx.fillText(`佈局空間：${presetName}`, 60, 1315);
+            tempCtx.fillStyle = '#64748b'; tempCtx.font = '22px Arial'; // 放大 1.6 倍 (14px -> 22px)
+            tempCtx.fillText(`生成時間：${new Date().toLocaleString()}`, 60, 1365);
+            
+            tempCtx.strokeStyle = '#334155'; tempCtx.lineWidth = 1.5;
+            tempCtx.beginPath(); tempCtx.moveTo(420, 1280); tempCtx.lineTo(420, 1420); tempCtx.stroke();
+            
+            tempCtx.fillStyle = '#ffffff'; tempCtx.font = 'bold 32px "Microsoft JhengHei", Arial'; // 放大 1.6 倍 (20px -> 32px)
+            tempCtx.fillText('增添貨架統計清單 (Shelves Inventory):', 450, 1310);
+            
+            const stats = {}; objects.forEach(obj => { stats[obj.name] = (stats[obj.name] || 0) + 1; });
+            const items = Object.entries(stats);
+            if (items.length === 0) {
+                tempCtx.fillStyle = '#475569'; tempCtx.font = 'italic 29px "Microsoft JhengHei"'; // 放大 1.6 倍 (18px -> 29px)
+                tempCtx.fillText('尚未增添任何貨架物件。', 450, 1365);
+            } else {
+                items.forEach(([name, count], idx) => {
+                    // 加寬排列坐標，確保大字體完美契合不重疊
+                    const posX = 450 + (idx % 4) * 490, posY = 1365 + Math.floor(idx / 4) * 45;
+                    tempCtx.fillStyle = '#10b981'; tempCtx.fillRect(posX, posY - 15, 12, 30); // 指示器同步放大
+                    tempCtx.fillStyle = '#cbd5e1'; tempCtx.font = 'bold 29px "Microsoft JhengHei"'; // 放大 1.6 倍 (18px -> 29px)
+                    tempCtx.fillText(name, posX + 25, posY);
+                    tempCtx.fillStyle = '#34d399'; tempCtx.font = 'bold 29px Arial'; // 放大 1.6 倍 (18px -> 29px)
+                    tempCtx.fillText(` x ${count} 組`, posX + 35 + tempCtx.measureText(name).width, posY);
+                });
+            }
+        }
+
+        function drawFloorplan() {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            ctx.save(); ctx.translate(panX, panY); ctx.scale(zoom, zoom);
+
+            const sW = spaceWidth / SCALE, sH = spaceHeight / SCALE;
+            
+            // 繪製 DXF 多邊形地面或默認矩形
+            if (floorPolygons && floorPolygons.length > 0) {
+                ctx.fillStyle = '#0f172a';
+                floorPolygons.forEach(poly => {
+                    if (poly.length > 0) {
+                        ctx.beginPath();
+                        ctx.moveTo(poly[0].x / SCALE, poly[0].y / SCALE);
+                        for (let p = 1; p < poly.length; p++) {
+                            ctx.lineTo(poly[p].x / SCALE, poly[p].y / SCALE);
+                        }
+                        ctx.closePath();
+                        ctx.fill();
+                    }
+                });
+            } else {
+                ctx.fillStyle = '#0f172a'; 
+                ctx.fillRect(0, 0, sW, sH);
+            }
+
+            // 繪製牆面軌跡線
+            if (wallPolygons && wallPolygons.length > 0) {
+                ctx.strokeStyle = '#475569';
+                ctx.lineWidth = 3;
+                wallPolygons.forEach(wall => {
+                    if (wall.length > 0) {
+                        ctx.beginPath();
+                        ctx.moveTo(wall[0].x / SCALE, wall[0].y / SCALE);
+                        for (let p = 1; p < wall.length; p++) {
+                            ctx.lineTo(wall[p].x / SCALE, wall[p].y / SCALE);
+                        }
+                        ctx.stroke();
+                    }
+                });
+            }
+
+            // 輔支網格線繪製
+            ctx.strokeStyle = '#1e293b'; ctx.lineWidth = 1; const step = 1000 / SCALE;
+            for (let i=0; i<sW; i+=step) { ctx.beginPath(); ctx.moveTo(i, 0); ctx.lineTo(i, sH); ctx.stroke(); }
+            for (let j=0; j<sH; j+=step) { ctx.beginPath(); ctx.moveTo(0, j); ctx.lineTo(sW, j); ctx.stroke(); }
+
+            // 統一調用 2D 物件/結構柱繪製
+            drawAll2DObjects(ctx, SCALE, false);
+
+            drawDimensionLine(ctx, 0, 0, sW, 0, `${Math.round(spaceWidth)}mm`, -45, false, false);
+            drawDimensionLine(ctx, sW, 0, sW, sH, `${Math.round(spaceHeight)}mm`, 45, true, false);
+            ctx.restore();
+        }
+
+        // --- 7. Three.js ---
+        function updateCameraPosition() {
+            if (!camera) return;
+            camera.position.x = cameraRadius * Math.sin(cameraPhi) * Math.sin(cameraTheta);
+            camera.position.y = cameraRadius * Math.cos(cameraPhi);
+            camera.position.z = cameraRadius * Math.sin(cameraPhi) * Math.cos(cameraTheta);
+            camera.lookAt(0, 500, 0);
+        }
+
+        function init3DControls(container) {
+            container.addEventListener('mousedown', (e) => {
+                if (e.button === 2 || e.button === 0) { is3DActive = true; lastMousePos = getMousePos(e); }
+            });
+            container.addEventListener('contextmenu', e => e.preventDefault());
+            window.addEventListener('mousemove', (e) => {
+                if (!is3DActive) return;
+                const m = getMousePos(e);
+                cameraTheta -= (m.x - lastMousePos.x) * 0.007;
+                cameraPhi = Math.max(0.1, Math.min(Math.PI/2 - 0.05, cameraPhi - (m.y - lastMousePos.y) * 0.007));
+                updateCameraPosition(); lastMousePos = m;
+            });
+            window.addEventListener('mouseup', () => is3DActive = false);
+            container.addEventListener('wheel', (e) => {
+                e.preventDefault(); cameraRadius = Math.max(1000, Math.min(80000, cameraRadius + e.deltaY * 5)); updateCameraPosition();
+            }, { passive: false });
+        }
+
+        // 豪華高擬真黑曜石大理石程序紋理生成器 (Fallback Engine)
+        function createMarbleTexture(isGround = true) {
+            const canvasTex = document.createElement('canvas'); 
+            canvasTex.width = canvasTex.height = 1024;
+            const ctxTex = canvasTex.getContext('2d');
+            
+            const grad = ctxTex.createRadialGradient(512, 512, 100, 512, 512, 700);
+            if (isGround) {
+                grad.addColorStop(0, '#1c1f26'); 
+                grad.addColorStop(1, '#0b0d11');
+            } else {
+                grad.addColorStop(0, '#3f4857'); 
+                grad.addColorStop(1, '#2b313d');
+            }
+            ctxTex.fillStyle = grad; 
+            ctxTex.fillRect(0, 0, 1024, 1024);
+            
+            ctxTex.shadowColor = 'rgba(0, 0, 0, 0.6)'; 
+            ctxTex.shadowBlur = 6; 
+            
+            ctxTex.strokeStyle = isGround ? 'rgba(255, 255, 255, 0.45)' : 'rgba(255, 255, 255, 0.28)'; 
+            ctxTex.lineWidth = isGround ? 2.5 : 1.8;
+            for (let i = 0; i < 18; i++) {
+                ctxTex.beginPath(); 
+                let sx = Math.random() * 1024, cy = 0, cx = sx; 
+                ctxTex.moveTo(sx, 0);
+                while (cy < 1024) { 
+                    cx += (Math.random() - 0.4) * 140 + 60; 
+                    cy += Math.random() * 120 + 40; 
+                    ctxTex.lineTo(cx, cy); 
+                } 
+                ctxTex.stroke();
+            }
+            
+            ctxTex.strokeStyle = 'rgba(230, 150, 40, 0.25)'; 
+            ctxTex.lineWidth = 1.2;
+            for (let i = 0; i < 10; i++) {
+                ctxTex.beginPath(); 
+                let sx = Math.random() * 1024, cy = 0, cx = sx; 
+                ctxTex.moveTo(sx, 0);
+                while (cy < 1024) { 
+                    cx += (Math.random() - 0.5) * 120 + 30; 
+                    cy += Math.random() * 100 + 60; 
+                    ctxTex.lineTo(cx, cy); 
+                } 
+                ctxTex.stroke();
+            }
+            
+            const texture = new THREE.CanvasTexture(canvasTex); 
+            texture.wrapS = texture.wrapT = THREE.RepeatWrapping; 
+            return texture;
+        }
+
+        // ⭐ 確保在 1.9 環境光下也是優雅沉穩的黑灰色 ⭐
+        function getGroundMaterial(width, height) {
+            const fallbackTex = createMarbleTexture(true);
+            fallbackTex.repeat.set(width / 2500, height / 2500); 
+            
+            const mat = new THREE.MeshStandardMaterial({ 
+                roughness: 0.98, 
+                metalness: 0.0,  
+                map: fallbackTex,
+                color: 0x0f0f0f  
+            });
+            
+            const texLoader = new THREE.TextureLoader();
+            texLoader.setCrossOrigin('anonymous');
+            texLoader.load(GROUND_TEXTURE_PATH, function(loadedTex) {
+                loadedTex.wrapS = THREE.RepeatWrapping;
+                loadedTex.wrapT = THREE.RepeatWrapping;
+                loadedTex.repeat.set(width / 2500, height / 2500);
+                loadedTex.needsUpdate = true;
+                mat.map = loadedTex;
+                mat.color.setHex(0x181818); 
+                mat.needsUpdate = true;
+            });
+            return mat;
+        }
+
+        function getPillarMaterial(w, h) {
+            const fallbackTex = createMarbleTexture(false);
+            fallbackTex.repeat.set(w / 1000, 2800 / 1000);
+            
+            const mat = new THREE.MeshStandardMaterial({ 
+                roughness: 0.95, 
+                metalness: 0.0,  
+                map: fallbackTex,
+                color: 0x1e1e1e  
+            });
+            
+            const texLoader = new THREE.TextureLoader();
+            texLoader.setCrossOrigin('anonymous');
+            texLoader.load(PILLAR_TEXTURE_PATH, function(loadedTex) {
+                loadedTex.wrapS = THREE.RepeatWrapping;
+                loadedTex.wrapT = THREE.RepeatWrapping;
+                loadedTex.repeat.set(w / 1000, 2800 / 1000);
+                loadedTex.needsUpdate = true;
+                mat.map = loadedTex;
+                mat.color.setHex(0x282828); 
+                mat.needsUpdate = true;
+            });
+            return mat;
+        }
+
+        function preloadTextures() {}
+
+        function setupEnvironment() {
+            if (floorMesh) scene.remove(floorMesh);
+
+            let floorGeo;
+            if (floorPolygons && floorPolygons.length > 0) {
+                const floorShape = new THREE.Shape();
+                const poly = floorPolygons[0];
+                if (poly && poly.length > 0) {
+                    floorShape.moveTo(poly[0].x - spaceWidth/2, spaceHeight/2 - poly[0].y);
+                    for (let p = 1; p < poly.length; p++) {
+                        floorShape.lineTo(poly[p].x - spaceWidth/2, spaceHeight/2 - poly[p].y);
+                    }
+                }
+                floorGeo = new THREE.ShapeGeometry(floorShape);
+            } else {
+                floorGeo = new THREE.PlaneGeometry(spaceWidth, spaceHeight);
+            }
+
+            floorGeo.computeBoundingBox();
+            const bbox = floorGeo.boundingBox;
+            const size = new THREE.Vector3();
+            bbox.getSize(size);
+            const uvs = floorGeo.attributes.uv;
+            if (uvs) {
+                for (let i = 0; i < uvs.count; i++) {
+                    const u = (floorGeo.attributes.position.getX(i) - bbox.min.x) / (size.x || 1);
+                    const v = (floorGeo.attributes.position.getY(i) - bbox.min.y) / (size.y || 1);
+                    uvs.setXY(i, u, v);
+                }
+                uvs.needsUpdate = true;
+            }
+
+            const floorMat = getGroundMaterial(spaceWidth, spaceHeight);
+
+            floorMesh = new THREE.Mesh(floorGeo, floorMat);
+            floorMesh.rotation.x = -Math.PI / 2;
+            floorMesh.receiveShadow = true; 
+            scene.add(floorMesh);
+
+            if (wallGroup) scene.remove(wallGroup);
+            wallGroup = new THREE.Group();
+            const wallHeight = 2800; 
+            
+            if (wallPolygons && wallPolygons.length > 0) {
+                wallPolygons.forEach(wall => {
+                    for (let i = 0; i < wall.length - 1; i++) {
+                        const p1 = wall[i], p2 = wall[i+1];
+                        const dx = p2.x - p1.x, dy = p2.y - p1.y;
+                        const distance = Math.hypot(dx, dy);
+                        if (distance < 1) continue;
+                        const angle = Math.atan2(dy, dx);
+                        
+                        const thickness = 100; 
+                        const wallSegGeo = new THREE.BoxGeometry(distance, wallHeight, thickness);
+                        
+                        const wallSegMat = new THREE.MeshStandardMaterial({ 
+                            color: 0x4a4a4a, 
+                            roughness: 0.95, 
+                            metalness: 0.0 
+                        });
+                        const wallMesh = new THREE.Mesh(wallSegGeo, wallSegMat);
+                        
+                        const midX = (p1.x + p2.x)/2 - spaceWidth/2;
+                        const midY = (p1.y + p2.y)/2 - spaceHeight/2;
+                        wallMesh.position.set(midX, wallHeight/2, midY);
+                        wallMesh.rotation.y = -angle;
+                        wallMesh.castShadow = true; wallMesh.receiveShadow = true;
+                        wallGroup.add(wallMesh);
+                    }
+                });
+                scene.add(wallGroup);
+            }
+        }
+
+        function updateFloor3D() { setupEnvironment(); }
+
+        function buildPillars3D() {
+            if (pillarsGroup) scene.remove(pillarsGroup);
+            pillarsGroup = new THREE.Group(); scene.add(pillarsGroup);
+            
+            const pillarHeight = 2800; 
+
+            barriers.forEach(bar => {
+                if (bar.type === 'pillar') {
+                    let colMesh;
+                    const colMat = getPillarMaterial(bar.w, bar.h);
+
+                    if (bar.polygon && bar.polygon.length > 2) {
+                        const colShape = new THREE.Shape();
+                        colShape.moveTo(bar.polygon[0].x - spaceWidth/2, spaceHeight/2 - bar.polygon[0].y);
+                        for (let p = 1; p < bar.polygon.length; p++) {
+                            colShape.lineTo(bar.polygon[p].x - spaceWidth/2, spaceHeight/2 - bar.polygon[p].y);
+                        }
+                        const extrudeSettings = { depth: pillarHeight, bevelEnabled: false };
+                        const colGeo = new THREE.ExtrudeGeometry(colShape, extrudeSettings);
+                        colGeo.rotateX(-Math.PI / 2); 
+
+                        colGeo.computeBoundingBox();
+                        const pBbox = colGeo.boundingBox;
+                        const pSize = new THREE.Vector3();
+                        pBbox.getSize(pSize);
+                        const pUvs = colGeo.attributes.uv;
+                        if (pUvs) {
+                            for (let i = 0; i < pUvs.count; i++) {
+                                const u = (colGeo.attributes.position.getX(i) - pBbox.min.x) / (pSize.x || 1);
+                                const v = (colGeo.attributes.position.getY(i) - pBbox.min.y) / (pSize.y || 1);
+                                pUvs.setXY(i, u, v);
+                            }
+                            pUvs.needsUpdate = true;
+                        }
+
+                        colMesh = new THREE.Mesh(colGeo, colMat);
+                    } else {
+                        const wallGeo = new THREE.BoxGeometry(bar.w, pillarHeight, bar.h);
+                        colMesh = new THREE.Mesh(wallGeo, colMat);
+                        colMesh.position.set(bar.x - spaceWidth/2, pillarHeight/2, bar.y - spaceHeight/2);
+                    }
+                    colMesh.castShadow = colMesh.receiveShadow = true; 
+                    pillarsGroup.add(colMesh);
+                }
+            });
+        }
+
+        function createObject3D(obj) {
+            removeObject3D(obj.id);
+            const group = new THREE.Group();
+            
+            if (obj.style === 'glb' && obj.glbPath) {
+                const placeholderMat = new THREE.MeshStandardMaterial({ color: obj.color, wireframe: true });
+                const placeholder = new THREE.Mesh(new THREE.BoxGeometry(obj.length, obj.height, obj.width), placeholderMat);
+                placeholder.position.y = obj.height / 2;
+                group.add(placeholder);
+
+                const gltfLoader = new THREE.GLTFLoader();
+                gltfLoader.load(obj.glbPath, function (gltf) {
+                    const object = gltf.scene;
+                    const box = new THREE.Box3().setFromObject(object);
+                    const size = box.getSize(new THREE.Vector3());
+                    
+                    const scaleX = size.x > 0 ? obj.length / size.x : 1;
+                    const scaleY = size.y > 0 ? obj.height / size.y : 1;
+                    const scaleZ = (size.z > 0 ? obj.width / size.z : 1) * (obj.mirrored ? -1 : 1);
+                    object.scale.set(scaleX, scaleY, scaleZ);
+                    
+                    const scaledBox = new THREE.Box3().setFromObject(object);
+                    const center = scaledBox.getCenter(new THREE.Vector3());
+                    object.position.set(-center.x, -scaledBox.min.y, -center.z);
+
+                    object.traverse(function (child) { 
+                        if (child.isMesh) { 
+                            child.castShadow = true; child.receiveShadow = true; 
+                            if(child.material) { child.material.needsUpdate = true; }
+                        } 
+                    });
+                    group.remove(placeholder);
+                    group.add(object);
+                }, undefined, function (error) {
+                    console.warn("GLB載入失敗，採用預設方塊", error);
+                });
+
+            } else if (obj.style === 'shelf') {
+                const poleMat = new THREE.MeshStandardMaterial({ color: 0x475569, metalness: 0.9, roughness: 0.1 });
+                const boardMat = new THREE.MeshStandardMaterial({ color: obj.color, metalness: 0.2, roughness: 0.3 });
+                const backboard = new THREE.Mesh(new THREE.BoxGeometry(obj.length - 40, obj.height, 40), boardMat);
+                backboard.position.y = obj.height/2; backboard.castShadow = true; group.add(backboard);
+                [{x: -obj.length/2+15, z: -obj.width/2+15}, {x: obj.length/2-15, z: -obj.width/2+15}, {x: -obj.length/2+15, z: obj.width/2-15}, {x: obj.length/2-15, z: obj.width/2-15}]
+                .forEach(p => { const pole = new THREE.Mesh(new THREE.BoxGeometry(30, obj.height, 30), poleMat); pole.position.set(p.x, obj.height/2, p.z); group.add(pole); });
+                for (let i = 0; i <= 4; i++) {
+                    const board = new THREE.Mesh(new THREE.BoxGeometry(obj.length - 20, 25, obj.width - 20), boardMat);
+                    board.position.set(0, 150 + (i * ((obj.height - 300) / 4)), 0); board.castShadow = true; group.add(board);
+                }
+            } else if (obj.style === 'cabinet') {
+                const bH = obj.height * 0.6;
+                const base = new THREE.Mesh(new THREE.BoxGeometry(obj.length, bH, obj.width), new THREE.MeshStandardMaterial({ color: obj.color, roughness: 0.2, metalness: 0.6 }));
+                base.position.y = bH/2; base.castShadow = true; group.add(base);
+                const glass = new THREE.Mesh(new THREE.BoxGeometry(obj.length - 20, obj.height * 0.4, obj.width - 20), new THREE.MeshStandardMaterial({ color: 0xffffff, transparent: true, opacity: 0.3 }));
+                glass.position.y = bH + (obj.height * 0.4)/2; group.add(glass);
+            } else {
+                const base = new THREE.Mesh(new THREE.BoxGeometry(obj.length, obj.height, obj.width), new THREE.MeshStandardMaterial({ color: obj.color, roughness: 0.5, metalness: 0.1 }));
+                base.position.y = obj.height/2; base.castShadow = true; group.add(base);
+            }
+            group.position.set(obj.x - spaceWidth/2, 0, obj.y - spaceHeight/2);
+            group.rotation.y = -(obj.angle * Math.PI)/180;
+            scene.add(group); threeObjects[obj.id] = group;
+        }
+
+        function updateObjectPosition3D(obj) {
+            const mesh = threeObjects[obj.id];
+            if (mesh) { mesh.position.set(obj.x - spaceWidth/2, 0, obj.y - spaceHeight/2); mesh.rotation.y = -(obj.angle * Math.PI)/180; }
+        }
+
+        function removeObject3D(id) { if (threeObjects[id]) { scene.remove(threeObjects[id]); delete threeObjects[id]; } }
+        function syncAllObjects3D() { Object.keys(threeObjects).forEach(id => removeObject3D(id)); objects.forEach(obj => createObject3D(obj)); }
+
+        function initThree() {
+            const container = document.getElementById('threeContainer');
+            scene = new THREE.Scene(); scene.background = new THREE.Color(0x0a0f1d);
+            camera = new THREE.PerspectiveCamera(42, (container.clientWidth||500)/(container.clientHeight||500), 0.1, 200000);
+            
+            renderer = new THREE.WebGLRenderer({ antialias: true, alpha: false, preserveDrawingBuffer: true });
+            renderer.setSize(container.clientWidth||500, container.clientHeight||500);
+            renderer.shadowMap.enabled = true; renderer.shadowMap.type = THREE.PCFSoftShadowMap; renderer.setPixelRatio(window.devicePixelRatio);
+            
+            renderer.outputEncoding = THREE.sRGBEncoding;
+            renderer.toneMapping = THREE.ACESFilmicToneMapping;
+            
+            renderer.toneMappingExposure = 1.9; 
+            container.appendChild(renderer.domElement);
+
+            scene.add(new THREE.AmbientLight(0xffffff, 1.9)); 
+            
+            const hemiLight = new THREE.HemisphereLight(0xffffff, 0x444444, 1.0); 
+            hemiLight.position.set(0, 20000, 0); scene.add(hemiLight);
+
+            const dirLightFront = new THREE.DirectionalLight(0xffffff, 1.0); 
+            dirLightFront.position.set(4000, 10000, 4000); dirLightFront.castShadow = true;
+            dirLightFront.shadow.mapSize.width = dirLightFront.shadow.mapSize.height = 4096;
+            scene.add(dirLightFront);
+
+            const dirLightBack = new THREE.DirectionalLight(0xffffff, 0.7); 
+            dirLightBack.position.set(-4000, 8000, -4000); scene.add(dirLightBack);
+
+            const dirLightLeft = new THREE.DirectionalLight(0xffffff, 0.5); 
+            dirLightLeft.position.set(-8000, 5000, 0); scene.add(dirLightLeft);
+
+            const dirLightRight = new THREE.DirectionalLight(0xffffff, 0.5); 
+            dirLightRight.position.set(8000, 5000, 0); scene.add(dirLightRight);
+
+            const dirLightTop = new THREE.DirectionalLight(0xffffff, 0.4); 
+            dirLightTop.position.set(0, 15000, 0); scene.add(dirLightTop);
+            
+            updateCameraPosition(); init3DControls(container);
+        }
+
+        function animate() { requestAnimationFrame(animate); if (renderer && scene && camera) renderer.render(scene, camera); }
+
+        // --- 8. Application Logic & Actions ---
+        function buildSystemState(preserveObjects = false) {
+            if (!preserveObjects) {
+                objects = []; 
+                selectedId = null; 
+                document.getElementById('selectedObjectName').innerText = "未選取物件";
+            }
+            updateFloor3D(); 
+            buildPillars3D(); 
+            resetCanvasView(); 
+            drawFloorplan(); 
+            syncAllObjects3D();
+        }
+
+        function selectFloorplan(key) {
+            const config = FLOORPLAN_PRESETS[key]; if (!config) return;
+            document.querySelectorAll('.fp-btn').forEach(btn => { btn.classList.remove('border-indigo-500', 'bg-indigo-950/40', 'text-white'); btn.classList.add('border-slate-700', 'bg-slate-850', 'text-slate-300'); });
+            const activeBtn = document.getElementById(`btn-fp-${key}`);
+            if (activeBtn) { activeBtn.classList.add('border-indigo-500', 'bg-indigo-950/40', 'text-white'); activeBtn.classList.remove('border-slate-700', 'bg-slate-850', 'text-slate-300'); }
+
+            if (config.autoDetect && config.path && config.path.endsWith('.dxf')) {
+                currentPlanKey = key;
+                loadFloorplanDXF(config.path, config.defaultW);
+            } else {
+                currentPlanKey = key;
+                floorPolygons = []; wallPolygons = []; 
+                spaceWidth = config.width; spaceHeight = config.height; barriers = [];
+                if(config.pillars) config.pillars.forEach(pil => barriers.push({ x: pil.x, y: pil.y, w: pil.w, h: pil.h, angle: 0, type: 'pillar' }));
+                buildSystemState(false); 
+                showToast(`已載入：${config.name}並重設視野。`);
+            }
+        }
+
+        function addShelfPreset(key) {
+            const config = SHELF_PRESETS[key]; if (!config) return;
+            const newObj = { id: `shelf-${key}-${Date.now()}`, name: config.name, x: config.length/2 + 50, y: config.width/2 + 50, length: config.length, width: config.width, height: config.height, angle: 0, color: config.color, style: config.style, glbPath: config.glbPath, mirrored: false };
+            
+            let isPlaced = false;
+            for (let dy = 0; dy < spaceHeight - config.width; dy += 200) {
+                for (let dx = 0; dx < spaceWidth - config.length; dx += 200) {
+                    newObj.x = config.length/2 + 50 + dx; newObj.y = config.width/2 + 50 + dy;
+                    if (isPositionAllowed(newObj, objects, barriers)) { isPlaced = true; break; }
+                }
+                if (isPlaced) break;
+            }
+
+            if (isPlaced) { objects.push(newObj); selectedId = newObj.id; createObject3D(newObj); drawFloorplan(); showToast(`已增添「${config.name}」。`); } 
+            else showToast("無空位可放置新貨架！");
+        }
+
+        function rotateSelected(degrees) {
+            if (!selectedId) return;
+            const obj = objects.find(o => o.id === selectedId); if (!obj) return;
+            const nextAngle = (obj.angle + degrees + 360) % 360;
+            if (isPositionAllowed({ ...obj, angle: nextAngle }, objects, barriers)) {
+                obj.angle = nextAngle; updateObjectPosition3D(obj); drawFloorplan();
+            } else {
+                showToast("旋轉受阻：旋轉後將會穿透相鄰物件、柱子或邊界！");
+            }
+        }
+
+        function openAISpacePlanner() {
+            const container = document.getElementById('threeContainer');
+            if (!container) return showToast("❌ 找不到 3D 容器！");
+            if (!renderer) return showToast("❌ 3D 渲染器未就緒！");
+            if (!camera) return showToast("❌ 相機未就緒！");
+            if (!scene) return showToast("❌ 場景未就緒！");
+            
+            try {
+                // 確保渲染器大小正確
+                const width = container.clientWidth;
+                const height = container.clientHeight;
+                if (width === 0 || height === 0) {
+                    return showToast("❌ 容器大小不正常！");
+                }
+                
+                // 手動執行一次渲染以確保擷取到畫面
+                renderer.render(scene, camera);
+                
+                // 等待一段時間以確保 GPU 渲染完成
+                setTimeout(() => {
+                    try {
+                        // 擷取 3D 畫布快照
+                        const snapshot = renderer.domElement.toDataURL('image/jpeg', 0.9);
+                        
+                        // 驗證快照是否有效
+                        if (!snapshot || snapshot.length < 100) {
+                            return showToast("❌ 快照數據無效！");
+                        }
+                        
+                        // 將快照存入 sessionStorage 以傳遞給新網頁（作為備用）
+                        sessionStorage.setItem('ai_space_snapshot', snapshot);
+                        
+                        // 提取 Base64 數據部分（去掉 data:image/jpeg;base64, 前罫）
+                        const base64Data = snapshot.split(',')[1];
+                        if (!base64Data) {
+                            return showToast("❌ 快照編碼失敗！");
+                        }
+                        
+                        // 跳轉到 web 應用的生成器頁面，並透過 URL 查詢參數傳遞快照
+                        // 注意：請將此 URL 替換為您實際部署的 web 應用地址
+                                const generatorUrl = 'https://aispaceplan-8ccnvacn.manus.space/style-generator?snapshot=' + encodeURIComponent(base64Data);
+                        window.location.href = generatorUrl;
+                    } catch (innerError) {
+                        showToast("❌ 擷取快照失敗！");
+                        console.error('快照擷取失敗:', innerError);
+                    }
+                }, 100);
+            } catch (e) {
+                showToast("❌ 擷取快照失敗！");
+                console.error('外層錯誤:', e);
+            }
+        }
+
+        function saveDoubleImages() {
+            const plainName = currentPlanKey === 'Custom' ? "自訂空間" : (currentPlanKey === 'CV_Auto' ? "智慧解析空間" : `平面 ${currentPlanKey}`);
+            const container = document.getElementById('threeContainer');
+            if (!container || !renderer || !camera || !scene) return showToast("❌ 3D 渲染器未就緒！");
+            
+            try {
+                const origW = container.clientWidth, origH = container.clientHeight;
+                
+                renderer.setSize(2560, 1440, false); camera.aspect = 2560/1440; camera.updateProjectionMatrix(); renderer.render(scene, camera);
+                const cvs3D = document.createElement('canvas'); cvs3D.width = 2560; cvs3D.height = 1440; const ctx3D = cvs3D.getContext('2d');
+                ctx3D.drawImage(renderer.domElement, 0, 0); drawStatsFooter(ctx3D, plainName);
+                ctx3D.fillStyle = 'rgba(15, 23, 42, 0.9)'; ctx3D.fillRect(40, 40, 240, 64);
+                ctx3D.fillStyle = '#ffffff'; ctx3D.font = 'bold 22px "Microsoft JhengHei"'; ctx3D.textBaseline = 'middle'; ctx3D.fillText(plainName, 105, 72);
+                
+                const link3D = document.createElement('a'); link3D.download = `3D_${currentPlanKey}_${Date.now()}.jpg`; link3D.href = cvs3D.toDataURL('image/jpeg', 0.95); link3D.click();
+                
+                renderer.setSize(origW, origH); camera.aspect = origW/origH; camera.updateProjectionMatrix(); renderer.render(scene, camera);
+
+                // 2D 平面圖導出
+                const cvs2D = document.createElement('canvas'); cvs2D.width = 2560; cvs2D.height = 1440; const ctx2D = cvs2D.getContext('2d');
+                ctx2D.fillStyle = '#020617'; ctx2D.fillRect(0, 0, 2560, 1440);
+                const scX = 2560/(spaceWidth/SCALE), scY = 1440/(spaceHeight/SCALE), tZoom = Math.min(scX, scY)*0.70;
+                ctx2D.save(); ctx2D.translate((2560 - (spaceWidth/SCALE)*tZoom)/2, (1440 - (spaceHeight/SCALE)*tZoom)/2 - 40); ctx2D.scale(tZoom, tZoom);
+                const swS = spaceWidth/SCALE, shS = spaceHeight/SCALE;
+                
+                if (floorPolygons && floorPolygons.length > 0) {
+                    ctx2D.fillStyle = '#0f172a';
+                    floorPolygons.forEach(poly => {
+                        ctx2D.beginPath();
+                        ctx2D.moveTo(poly[0].x / SCALE, poly[0].y / SCALE);
+                        for (let p = 1; p < poly.length; p++) {
+                            ctx2D.lineTo(poly[p].x / SCALE, poly[p].y / SCALE);
+                        }
+                        ctx2D.closePath();
+                        ctx2D.fill();
+                    });
+                } else {
+                    ctx2D.fillStyle = '#0f172a'; ctx2D.fillRect(0, 0, swS, shS);
+                }
+
+                if (wallPolygons && wallPolygons.length > 0) {
+                    ctx2D.strokeStyle = '#475569';
+                    ctx2D.lineWidth = 3;
+                    wallPolygons.forEach(wall => {
+                        ctx2D.beginPath();
+                        ctx2D.moveTo(wall[0].x / SCALE, wall[0].y / SCALE);
+                        for (let p = 1; p < wall.length; p++) {
+                            ctx2D.lineTo(wall[p].x / SCALE, wall[p].y / SCALE);
+                        }
+                        ctx2D.stroke();
+                    });
+                }
+
+                ctx2D.strokeStyle = '#1e293b'; ctx2D.lineWidth = 1;
+                for (let i=0; i<swS; i+=100) { ctx2D.beginPath(); ctx2D.moveTo(i, 0); ctx2D.lineTo(i, shS); ctx2D.stroke(); }
+                for (let j=0; j<shS; j+=100) { ctx2D.beginPath(); ctx2D.moveTo(0, j); ctx2D.lineTo(swS, j); ctx2D.stroke(); }
+                
+                drawAll2DObjects(ctx2D, SCALE, true);
+                
+                drawDimensionLine(ctx2D, 0, 0, swS, 0, `${Math.round(spaceWidth)}mm`, -45, false, true);
+                drawDimensionLine(ctx2D, swS, 0, swS, shS, `${Math.round(spaceHeight)}mm`, 45, true, true);
+                ctx2D.restore();
+                
+                drawStatsFooter(ctx2D, plainName);
+                ctx2D.fillStyle = 'rgba(15, 23, 42, 0.9)'; ctx2D.fillRect(40, 40, 240, 64);
+                ctx2D.fillStyle = '#ffffff'; ctx2D.font = 'bold 22px "Microsoft JhengHei"'; ctx2D.textBaseline = 'middle'; ctx2D.fillText(plainName, 105, 72);
+                
+                const link2D = document.createElement('a'); link2D.download = `2D_${currentPlanKey}_${Date.now()}.jpg`; link2D.href = cvs2D.toDataURL('image/jpeg', 0.95); link2D.click();
+                showToast("📸 雙重 2K 高清全景圖像導出成功！");
+            } catch (e) { showToast("❌ 導出錯誤！"); console.error(e); }
+        }
+
+        // --- 9. Event Listeners ---
+        function initEventListeners() {
+            canvas.addEventListener('wheel', e => {
+                e.preventDefault(); const m = getMousePos(e); zoom = Math.max(0.015, Math.min(1.5, zoom * (e.deltaY < 0 ? 1.15 : 1/1.15)));
+                const worldPos = { x: ((m.x - panX) / (zoom / (e.deltaY < 0 ? 1.15 : 1/1.15))) * SCALE, y: ((m.y - panY) / (zoom / (e.deltaY < 0 ? 1.15 : 1/1.15))) * SCALE };
+                panX = m.x - (worldPos.x / SCALE) * zoom;
+                panY = m.y - (worldPos.y / SCALE) * zoom;
+                drawFloorplan();
+            }, { passive: false });
+
+            canvas.addEventListener('mousedown', e => {
+                const m = getMousePos(e);
+                if (e.button === 1 || e.button === 2) {
+                    isPanning = true;
+                    lastPanMouse = m;
+                    e.preventDefault();
+                    return;
+                }
+                if (e.button === 0) {
+                    const clickPos = canvasToWorld(e); let found = null;
+                    for (let i = objects.length-1; i >= 0; i--) {
+                        const o = objects[i], dx = clickPos.x - o.x, dy = clickPos.y - o.y, rad = (-o.angle*Math.PI)/180, cos = Math.cos(rad), sin = Math.sin(rad);
+                        if (Math.abs(dx*cos - dy*sin) <= o.length/2 && Math.abs(dx*sin + dy*cos) <= o.width/2) { found = o; break; }
+                    }
+                    if (found) {
+                        selectedId = found.id; isDragging = true; dragOffset = { x: clickPos.x - found.x, y: clickPos.y - found.y };
+                        const dispName = found.mirrored ? `${found.name} (M)` : found.name;
+                        document.getElementById('selectedObjectName').innerHTML = `<i class="fa-solid fa-cube text-emerald-400 mr-1.5"></i> ${dispName}`;
+                    } else { 
+                        selectedId = null; 
+                        document.getElementById('selectedObjectName').innerText = "未選取物件"; 
+                        isPanning = true;
+                        lastPanMouse = m;
+                    }
+                    drawFloorplan();
+                }
+            });
+
+            canvas.addEventListener('mousemove', e => {
+                const m = getMousePos(e);
+                if (isPanning) { 
+                    panX += m.x - lastPanMouse.x; panY += m.y - lastPanMouse.y; 
+                    lastPanMouse = m; drawFloorplan(); return; 
+                }
+                if (!isDragging || !selectedId) return;
+                const clickPos = canvasToWorld(e), obj = objects.find(o => o.id === selectedId); if (!obj) return;
+                
+                let tx = clickPos.x - dragOffset.x, ty = clickPos.y - dragOffset.y;
+                
+                const canMoveRawX = isPositionAllowed({ ...obj, x: tx }, objects, barriers);
+                const canMoveRawY = isPositionAllowed({ ...obj, y: ty }, objects, barriers);
+
+                const snapped = getSnappedPosition(obj, tx, ty);
+                
+                let finalX = tx;
+                let finalY = ty;
+
+                if (isPositionAllowed({ ...obj, x: snapped.x, y: snapped.y }, objects, barriers)) {
+                    finalX = snapped.x;
+                    finalY = snapped.y;
+                } else if (isPositionAllowed({ ...obj, x: snapped.x, y: ty }, objects, barriers)) {
+                    finalX = snapped.x;
+                    finalY = ty;
+                } else if (isPositionAllowed({ ...obj, x: tx, y: snapped.y }, objects, barriers)) {
+                    finalX = tx;
+                    finalY = snapped.y;
+                } else {
+                    if (canMoveRawX) finalX = tx;
+                    if (canMoveRawY) finalY = ty;
+                }
+
+                let moved = false;
+                if (isPositionAllowed({ ...obj, x: finalX, y: finalY }, objects, barriers)) {
+                    obj.x = finalX;
+                    obj.y = finalY;
+                    moved = true;
+                } else {
+                    if (isPositionAllowed({ ...obj, x: finalX }, objects, barriers)) {
+                        obj.x = finalX;
+                        moved = true;
+                    }
+                    if (isPositionAllowed({ ...obj, y: finalY }, objects, barriers)) {
+                        obj.y = finalY;
+                        moved = true;
+                    }
+                }
+                
+                if (moved) updateObjectPosition3D(obj);
+                document.getElementById('collisionAlert').classList.toggle('hidden', Math.abs(tx - obj.x) <= 1 && Math.abs(ty - obj.y) <= 1);
+                drawFloorplan();
+            });
+
+            window.addEventListener('mouseup', e => { isPanning = false; isDragging = false; document.getElementById('collisionAlert').classList.add('hidden'); });
+
+            // ⭐ 修改項目 3: 偵測如果用戶將瀏覽器縮放、高寬調整時，完美 refresh 2D 平面圖及 3D 即時視窗 ⭐
+            window.addEventListener('resize', () => {
+                resizeCanvas();
+                const container = document.getElementById('threeContainer');
+                if (container && camera && renderer) {
+                    camera.aspect = (container.clientWidth || 500) / (container.clientHeight || 500);
+                    camera.updateProjectionMatrix();
+                    renderer.setSize(container.clientWidth || 500, container.clientHeight || 500);
+                }
+                drawFloorplan();
+            });
+
+            document.getElementById('customSpaceForm').addEventListener('submit', e => {
+                e.preventDefault(); spaceWidth = parseInt(document.getElementById('customWidth').value); spaceHeight = parseInt(document.getElementById('customHeight').value);
+                currentPlanKey = 'Custom'; floorPolygons = []; wallPolygons = []; barriers = []; buildSystemState(); closeModal('customSpaceModal');
+                document.querySelectorAll('.fp-btn').forEach(btn => { btn.classList.remove('border-indigo-500', 'bg-indigo-950/40', 'text-white'); btn.classList.add('border-slate-700', 'bg-slate-850', 'text-slate-300'); });
+                showToast(`客製化空間已生成：${spaceWidth} x ${spaceHeight} mm！`);
+            });
+
+            document.getElementById('rotateLeftBtn').onclick = () => rotateSelected(-45);
+            document.getElementById('rotateRightBtn').onclick = () => rotateSelected(45);
+            
+            document.getElementById('mirrorObjectBtn').onclick = () => {
+                if (selectedId) {
+                    const obj = objects.find(o => o.id === selectedId);
+                    if (obj) {
+                        obj.mirrored = !obj.mirrored;
+                        createObject3D(obj);
+                        drawFloorplan();
+                        const dispName = obj.mirrored ? `${obj.name} (M)` : obj.name;
+                        document.getElementById('selectedObjectName').innerHTML = `<i class="fa-solid fa-cube text-emerald-400 mr-1.5"></i> ${dispName}`;
+                        showToast(`已${obj.mirrored ? '啟用' : '停用'}鏡像。`);
+                    }
+                } else {
+                    showToast("請先選擇一個物件！");
+                }
+            };
+
+            document.getElementById('deleteObjectBtn').onclick = () => {
+                if (selectedId) { objects = objects.filter(o => o.id !== selectedId); removeObject3D(selectedId); selectedId = null; document.getElementById('selectedObjectName').innerText = "未選取物件"; drawFloorplan(); }
+            };
+            document.getElementById('zoomInBtn').onclick = () => { zoom = Math.min(1.5, zoom * 1.2); drawFloorplan(); };
+            document.getElementById('zoomOutBtn').onclick = () => { zoom = Math.max(0.015, zoom / 1.2); drawFloorplan(); };
+        }
+
+        // --- 10. Bootstrap ---
+        window.onload = function() {
+            initThree();
+            preloadTextures(); 
+            selectFloorplan('A'); 
+            initEventListeners();
+            
+            setTimeout(() => {
+                resizeCanvas();
+                const container = document.getElementById('threeContainer');
+                if (container && camera && renderer) {
+                    camera.aspect = (container.clientWidth || 500) / (container.clientHeight || 500);
+                    camera.updateProjectionMatrix();
+                    renderer.setSize(container.clientWidth || 500, container.clientHeight || 500);
+                }
+                drawFloorplan();
+                
+                const loaderMask = document.getElementById('threeLoading');
+                if (loaderMask) { loaderMask.classList.add('opacity-0'); setTimeout(() => loaderMask.classList.add('hidden'), 300); }
+            }, 150);
+
+            animate();
+            showToast("✅ 智慧 3D 規劃系統已完全就緒！已完成功能升級優化。");
+        };
+    </script>
+</body>
+</html>
