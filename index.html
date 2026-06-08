@@ -1589,7 +1589,7 @@
             }
         }
 
-                function openAISpacePlanner() {
+                        function openAISpacePlanner() {
             const container = document.getElementById('threeContainer');
             if (!container || !renderer || !camera || !scene) {
                 return showToast("❌ 3D 渲染器未就緒！");
@@ -1619,10 +1619,8 @@
                 if (!snapshot || snapshot.length < 100) {
                     return showToast("❌ 快照數據無效！");
                 }
-                // 將快照存入 sessionStorage 以傳遞給新網頁
-                sessionStorage.setItem('ai_space_snapshot', snapshot);
-                // 直接跳轉到生成器頁面（sessionStorage 在同一瀏覽器會話中可用）
-                const generatorUrl = 'https://aispaceplan-8ccnvacn.manus.space/style-generator';
+                // 使用 URL 查詢參數傳遞快照（直接傳遞完整 Data URL）
+                const generatorUrl = 'https://aispaceplan-8ccnvacn.manus.space/style-generator?snapshot=' + encodeURIComponent(snapshot);
                 window.open(generatorUrl, '_blank');
             } catch (e) {
                 showToast("❌ 擷取快照失敗！");
