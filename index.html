@@ -1589,40 +1589,96 @@
             }
         }
 
-                        function openAISpacePlanner() {
+                                function openAISpacePlanner() {
             const container = document.getElementById('threeContainer');
             if (!container || !renderer || !camera || !scene) {
                 return showToast("❌ 3D 渲染器未就緒！");
             }
+            
+            // 顯示載入動畫
+            const loadingOverlay = document.createElement('div');
+            loadingOverlay.id = 'ai-loading-overlay';
+            loadingOverlay.style.cssText = `
+                position: fixed;
+                top: 0;
+                left: 0;
+                width: 100%;
+                height: 100%;
+                background: rgba(0, 0, 0, 0.7);
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                z-index: 10000;
+            `;
+            const spinner = document.createElement('div');
+            spinner.style.cssText = `
+                border: 4px solid rgba(255, 255, 255, 0.3);
+                border-top: 4px solid white;
+                border-radius: 50%;
+                width: 50px;
+                height: 50px;
+                animation: spin 1s linear infinite;
+            `;
+            const style = document.createElement('style');
+            style.textContent = `
+                @keyframes spin {
+                    0% { transform: rotate(0deg); }
+                    100% { transform: rotate(360deg); }
+                }
+            `;
+            document.head.appendChild(style);
+            loadingOverlay.appendChild(spinner);
+            document.body.appendChild(loadingOverlay);
+            
             try {
                 const origW = container.clientWidth;
                 const origH = container.clientHeight;
-                // 設置高質量 3D 圖像
+                
+                // 設置高質量 3D 圖像進行渲染
                 renderer.setSize(2560, 1440, false);
                 camera.aspect = 2560 / 1440;
                 camera.updateProjectionMatrix();
                 renderer.render(scene, camera);
+                
                 // 擷取高質量 3D 圖像
                 const cvs3D = document.createElement('canvas');
                 cvs3D.width = 2560;
                 cvs3D.height = 1440;
                 const ctx3D = cvs3D.getContext('2d');
                 ctx3D.drawImage(renderer.domElement, 0, 0);
-                // 擷取高質量 3D 圖像的 Data URL
-                const snapshot = cvs3D.toDataURL('image/jpeg', 0.95);
+                
+                // 壓縮圖片：降低質量和分辨率以避免 URL 過長
+                const compressedCanvas = document.createElement('canvas');
+                compressedCanvas.width = 1280;  // 降低到 50% 分辨率
+                compressedCanvas.height = 720;
+                const compressedCtx = compressedCanvas.getContext('2d');
+                compressedCtx.drawImage(cvs3D, 0, 0, 1280, 720);
+                
+                // 使用較低的 JPEG 質量進行壓縮
+                const compressedSnapshot = compressedCanvas.toDataURL('image/jpeg', 0.6);
+                
                 // 恢復原始渲染器大小
                 renderer.setSize(origW, origH);
                 camera.aspect = origW / origH;
                 camera.updateProjectionMatrix();
                 renderer.render(scene, camera);
+                
                 // 驗證快照是否有效
-                if (!snapshot || snapshot.length < 100) {
+                if (!compressedSnapshot || compressedSnapshot.length < 100) {
+                    loadingOverlay.remove();
                     return showToast("❌ 快照數據無效！");
                 }
-                // 使用 URL 查詢參數傳遞快照（直接傳遞完整 Data URL）
-                const generatorUrl = 'https://aispaceplan-8ccnvacn.manus.space/style-generator?snapshot=' + encodeURIComponent(snapshot);
-                window.open(generatorUrl, '_blank');
+                
+                // 使用 URL 查詢參數傳遞壓縮後的快照
+                const generatorUrl = 'https://aispaceplan-8ccnvacn.manus.space/style-generator?snapshot=' + encodeURIComponent(compressedSnapshot);
+                
+                // 延遲 500ms 後跳轉，讓用戶看到載入動畫
+                setTimeout(() => {
+                    loadingOverlay.remove();
+                    window.open(generatorUrl, '_blank');
+                }, 500);
             } catch (e) {
+                loadingOverlay.remove();
                 showToast("❌ 擷取快照失敗！");
                 console.error('外層錯誤:', e);
             }
