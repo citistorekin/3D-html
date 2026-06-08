@@ -1589,88 +1589,46 @@
             }
         }
 
-        function openAISpacePlanner() {
+                function openAISpacePlanner() {
             const container = document.getElementById('threeContainer');
-            if (!container) return showToast("❌ 找不到 3D 容器！");
-            if (!renderer) return showToast("❌ 3D 渲染器未就緒！");
-            if (!camera) return showToast("❌ 相機未就緒！");
-            if (!scene) return showToast("❌ 場景未就緒！");
-            
+            if (!container || !renderer || !camera || !scene) {
+                return showToast("❌ 3D 渲染器未就緒！");
+            }
             try {
-                const origW = container.clientWidth, origH = container.clientHeight;
-                
-                // 使用高質量 3D 圖像（與 saveDoubleImages() 相同的邏輯）
+                const origW = container.clientWidth;
+                const origH = container.clientHeight;
+                // 設置高質量 3D 圖像
                 renderer.setSize(2560, 1440, false);
-                camera.aspect = 2560/1440;
+                camera.aspect = 2560 / 1440;
                 camera.updateProjectionMatrix();
                 renderer.render(scene, camera);
-                
-                // 建立高質量 3D 圖像
+                // 擷取高質量 3D 圖像
                 const cvs3D = document.createElement('canvas');
                 cvs3D.width = 2560;
                 cvs3D.height = 1440;
                 const ctx3D = cvs3D.getContext('2d');
                 ctx3D.drawImage(renderer.domElement, 0, 0);
-                
                 // 擷取高質量 3D 圖像的 Data URL
                 const snapshot = cvs3D.toDataURL('image/jpeg', 0.95);
-                
                 // 恢復原始渲染器大小
                 renderer.setSize(origW, origH);
-                camera.aspect = origW/origH;
+                camera.aspect = origW / origH;
                 camera.updateProjectionMatrix();
                 renderer.render(scene, camera);
-                
                 // 驗證快照是否有效
                 if (!snapshot || snapshot.length < 100) {
                     return showToast("❌ 快照數據無效！");
                 }
-                
-                // 將快照存入 sessionStorage 以傳遞給新網頁（作為備用）
+                // 將快照存入 sessionStorage 以傳遞給新網頁
                 sessionStorage.setItem('ai_space_snapshot', snapshot);
-                
-                // 使用後端快照暫存機制 - 解決 HTTP 414 URL 過長問題
-                const payload = {
-                    json: {
-                        snapshotBase64: snapshot,
-                    },
-                };
-                
-                fetch('https://aispaceplan-8ccnvacn.manus.space/api/trpc/styleGeneration.storeSnapshotForTransfer', {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                    },
-                    body: JSON.stringify(payload),
-                })
-                .then(response => {
-                    if (!response.ok) {
-                        throw new Error(`HTTP ${response.status}`);
-                    }
-                    return response.json();
-                })
-                .then(data => {
-                    // tRPC 的響應格式是 { result: { data: { token: '...' } } }
-                    const token = data?.result?.data?.token;
-                    if (token) {
-                        // 使用 token 跳轉到生成器頁面
-                        const generatorUrl = 'https://aispaceplan-8ccnvacn.manus.space/style-generator?token=' + encodeURIComponent(token);
-                        window.location.href = generatorUrl;
-                    } else {
-                        showToast("❌ 快照暫存失敗！");
-                        console.error('無效的 token 響應:', data);
-                    }
-                })
-                .catch(error => {
-                    showToast("❌ 快照上傳失敗！");
-                    console.error('快照上傳失敗:', error);
-                });
+                // 直接跳轉到生成器頁面（sessionStorage 在同一瀏覽器會話中可用）
+                const generatorUrl = 'https://aispaceplan-8ccnvacn.manus.space/style-generator';
+                window.open(generatorUrl, '_blank');
             } catch (e) {
                 showToast("❌ 擷取快照失敗！");
                 console.error('外層錯誤:', e);
             }
         }
-
         function saveDoubleImages() {
             const plainName = currentPlanKey === 'Custom' ? "自訂空間" : (currentPlanKey === 'CV_Auto' ? "智慧解析空間" : `平面 ${currentPlanKey}`);
             const container = document.getElementById('threeContainer');
