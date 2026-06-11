@@ -1670,14 +1670,19 @@
                 }
                 
                 // 使用後端存儲方案傳遞快照
-                const input = JSON.stringify({ snapshotBase64: compressedSnapshot });
-                const storeUrl = 'https://aispaceplan-8ccnvacn.manus.space/api/trpc/styleGeneration.storeSnapshotForTransfer?input=' + encodeURIComponent(input);
+                // 注意：tRPC 需要使用 POST body 而不是 URL 查詢參數，以避免 HTTP 431 錯誤
+                const storeUrl = 'https://aispaceplan-8ccnvacn.manus.space/api/trpc/styleGeneration.storeSnapshotForTransfer';
                 
                 fetch(storeUrl, { 
                     method: 'POST', 
                     headers: { 'Content-Type': 'application/json' },
                     mode: 'cors',
-                    credentials: 'omit'
+                    credentials: 'omit',
+                    body: JSON.stringify({
+                        json: {
+                            snapshotBase64: compressedSnapshot
+                        }
+                    })
                 })
                     .then(response => {
                         console.log('[Snapshot] HTTP 響應:', response.status, response.statusText);
