@@ -1673,14 +1673,25 @@
                 const input = JSON.stringify({ snapshotBase64: compressedSnapshot });
                 const storeUrl = 'https://aispaceplan-8ccnvacn.manus.space/api/trpc/styleGeneration.storeSnapshotForTransfer?input=' + encodeURIComponent(input);
                 
-                fetch(storeUrl, { method: 'POST', headers: { 'Content-Type': 'application/json' } })
+                fetch(storeUrl, { 
+                    method: 'POST', 
+                    headers: { 'Content-Type': 'application/json' },
+                    mode: 'cors',
+                    credentials: 'omit'
+                })
                     .then(response => {
+                        console.log('[Snapshot] HTTP 響應:', response.status, response.statusText);
                         if (!response.ok) throw new Error('HTTP ' + response.status);
                         return response.json();
                     })
                     .then(data => {
+                        console.log('[Snapshot] 響應數據:', data);
                         const token = data.result?.data?.token;
-                        if (!token) throw new Error('無效的 token 響應');
+                        if (!token) {
+                            console.error('[Snapshot] 找不到 token，完整響應:', JSON.stringify(data));
+                            throw new Error('無效的 token 響應');
+                        }
+                        console.log('[Snapshot] 成功獲得 token:', token);
                         const generatorUrl = 'https://aispaceplan-8ccnvacn.manus.space/style-generator?token=' + encodeURIComponent(token);
                         setTimeout(() => {
                             loadingOverlay.remove();
@@ -1689,8 +1700,8 @@
                     })
                     .catch(error => {
                         loadingOverlay.remove();
+                        console.error('[Snapshot] 完整錯誤信息:', error.message, error);
                         showToast('❌ 快照傳輸失敗！');
-                        console.error('快照傳輸錯誤:', error);
                     });
             } catch (e) {
                 loadingOverlay.remove();
