@@ -1670,8 +1670,7 @@
                 }
                 
                 // 使用後端存儲方案傳遞快照
-                // 注意：tRPC 需要使用 POST body 而不是 URL 查詢參數，以避免 HTTP 431 錯誤
-                const storeUrl = 'https://aispaceplan-8ccnvacn.manus.space/api/trpc/styleGeneration.storeSnapshotForTransfer';
+                const storeUrl = 'https://aispaceplan-8ccnvacn.manus.space/api/snapshot/store';
                 
                 fetch(storeUrl, { 
                     method: 'POST', 
@@ -1679,9 +1678,7 @@
                     mode: 'cors',
                     credentials: 'omit',
                     body: JSON.stringify({
-                        json: {
-                            snapshotBase64: compressedSnapshot
-                        }
+                        snapshotBase64: compressedSnapshot
                     })
                 })
                     .then(response => {
@@ -1691,7 +1688,7 @@
                     })
                     .then(data => {
                         console.log('[Snapshot] 響應數據:', data);
-                        const token = data.result?.data?.token;
+                        const token = data.token;
                         if (!token) {
                             console.error('[Snapshot] 找不到 token，完整響應:', JSON.stringify(data));
                             throw new Error('無效的 token 響應');
