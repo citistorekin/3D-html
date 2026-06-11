@@ -1669,14 +1669,29 @@
                     return showToast("❌ 快照數據無效！");
                 }
                 
-                // 使用 URL 查詢參數傳遞壓縮後的快照
-                const generatorUrl = 'https://aispaceplan-8ccnvacn.manus.space/style-generator?snapshot=' + encodeURIComponent(compressedSnapshot);
+                // 使用後端存儲方案傳遞快照
+                const input = JSON.stringify({ snapshotBase64: compressedSnapshot });
+                const storeUrl = 'https://aispaceplan-8ccnvacn.manus.space/api/trpc/styleGeneration.storeSnapshotForTransfer?input=' + encodeURIComponent(input);
                 
-                // 延遲 500ms 後跳轉，讓用戶看到載入動畫
-                setTimeout(() => {
-                    loadingOverlay.remove();
-                    window.open(generatorUrl, '_blank');
-                }, 500);
+                fetch(storeUrl, { method: 'POST', headers: { 'Content-Type': 'application/json' } })
+                    .then(response => {
+                        if (!response.ok) throw new Error('HTTP ' + response.status);
+                        return response.json();
+                    })
+                    .then(data => {
+                        const token = data.result?.data?.token;
+                        if (!token) throw new Error('無效的 token 響應');
+                        const generatorUrl = 'https://aispaceplan-8ccnvacn.manus.space/style-generator?token=' + encodeURIComponent(token);
+                        setTimeout(() => {
+                            loadingOverlay.remove();
+                            window.open(generatorUrl, '_blank');
+                        }, 500);
+                    })
+                    .catch(error => {
+                        loadingOverlay.remove();
+                        showToast('❌ 快照傳輸失敗！');
+                        console.error('快照傳輸錯誤:', error);
+                    });
             } catch (e) {
                 loadingOverlay.remove();
                 showToast("❌ 擷取快照失敗！");
