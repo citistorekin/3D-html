@@ -1529,7 +1529,7 @@
                 }
             } else if (obj.type === 'wall') {
                 // 牆身使用純色米灰色，不使用貼圖
-                const wallMat = new THREE.MeshStandardMaterial({ color: 0xbab7b1, roughness: 0.5, metalness: 0.2 });
+                const wallMat = new THREE.MeshStandardMaterial({ color: 0xbab7b1, roughness: 0.38, metalness: 0.92 });
                 const base = new THREE.Mesh(new THREE.BoxGeometry(obj.length, obj.height, obj.width), wallMat);
                 base.position.y = obj.height/2; base.castShadow = true; base.receiveShadow = true;
                 group.add(base);
