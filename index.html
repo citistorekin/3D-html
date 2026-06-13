@@ -1103,29 +1103,32 @@
 
                 ctxTarget.save(); ctxTarget.translate(obj.x / scaleDivider, obj.y / scaleDivider);
                 
-                // 繪製物件說明文字（在名稱上方）
-                if (obj.description && obj.description.trim()) {
-                    ctxTarget.font = `300 ${isExport ? 18 : 13}px "Microsoft JhengHei"`;
-                    const descW = ctxTarget.measureText(obj.description).width;
-                    ctxTarget.fillStyle = 'rgba(15, 23, 42, 0.9)';
-                    ctxTarget.fillRect(-descW/2 - (isExport?12:8), -(isExport?50:35), descW + (isExport?24:16), (isExport?32:22));
-                    ctxTarget.strokeStyle = isSel ? '#818cf8' : 'rgba(255, 255, 255, 0.15)';
-                    ctxTarget.lineWidth = isExport?2:1;
-                    ctxTarget.strokeRect(-descW/2 - (isExport?12:8), -(isExport?50:35), descW + (isExport?24:16), (isExport?32:22));
-                    ctxTarget.fillStyle = '#ffffff';
-                    ctxTarget.textAlign = 'center';
-                    ctxTarget.textBaseline = 'middle';
-                    ctxTarget.fillText(obj.description, 0, -(isExport?34:23));
-                }
-                
-                ctxTarget.font = `300 ${isExport ? 20 : 12}px "Microsoft JhengHei"`; 
-                const displayString = obj.name;
-                const txtW = ctxTarget.measureText(displayString).width;
-                ctxTarget.fillStyle = 'rgba(15, 23, 42, 0.9)'; ctxTarget.fillRect(-txtW/2 - (isExport?12:8), -(isExport?18:12), txtW + (isExport?24:16), (isExport?36:24));
-                ctxTarget.strokeStyle = isSel ? '#818cf8' : 'rgba(255, 255, 255, 0.15)'; ctxTarget.lineWidth = isExport?2:1; ctxTarget.strokeRect(-txtW/2 - (isExport?12:8), -(isExport?18:12), txtW + (isExport?24:16), (isExport?36:24));
-                ctxTarget.fillStyle = '#f8fafc'; ctxTarget.textAlign = 'center'; ctxTarget.textBaseline = 'middle'; ctxTarget.fillText(displayString, 0, 0);
-                ctxTarget.fillStyle = '#94a3b8'; ctxTarget.font = `${isExport ? 14 : 9}px Arial`; 
-                ctxTarget.fillText(`${obj.length}x${obj.width}x${obj.height}mm`, 0, isExport ? 30 : 20); 
+                // 不顯示牆身的標籤和尺寸
+                if (obj.type !== 'wall') {
+                    // 繪製物件說明文字（在名稱上方）
+                    if (obj.description && obj.description.trim()) {
+                        ctxTarget.font = `300 ${isExport ? 18 : 13}px "Microsoft JhengHei"`;
+                        const descW = ctxTarget.measureText(obj.description).width;
+                        ctxTarget.fillStyle = 'rgba(15, 23, 42, 0.9)';
+                        ctxTarget.fillRect(-descW/2 - (isExport?12:8), -(isExport?50:35), descW + (isExport?24:16), (isExport?32:22));
+                        ctxTarget.strokeStyle = isSel ? '#818cf8' : 'rgba(255, 255, 255, 0.15)';
+                        ctxTarget.lineWidth = isExport?2:1;
+                        ctxTarget.strokeRect(-descW/2 - (isExport?12:8), -(isExport?50:35), descW + (isExport?24:16), (isExport?32:22));
+                        ctxTarget.fillStyle = '#ffffff';
+                        ctxTarget.textAlign = 'center';
+                        ctxTarget.textBaseline = 'middle';
+                        ctxTarget.fillText(obj.description, 0, -(isExport?34:23));
+                    }
+                    
+                    ctxTarget.font = `300 ${isExport ? 20 : 12}px "Microsoft JhengHei"`; 
+                    const displayString = obj.name;
+                    const txtW = ctxTarget.measureText(displayString).width;
+                    ctxTarget.fillStyle = 'rgba(15, 23, 42, 0.9)'; ctxTarget.fillRect(-txtW/2 - (isExport?12:8), -(isExport?18:12), txtW + (isExport?24:16), (isExport?36:24));
+                    ctxTarget.strokeStyle = isSel ? '#818cf8' : 'rgba(255, 255, 255, 0.15)'; ctxTarget.lineWidth = isExport?2:1; ctxTarget.strokeRect(-txtW/2 - (isExport?12:8), -(isExport?18:12), txtW + (isExport?24:16), (isExport?36:24));
+                    ctxTarget.fillStyle = '#f8fafc'; ctxTarget.textAlign = 'center'; ctxTarget.textBaseline = 'middle'; ctxTarget.fillText(displayString, 0, 0);
+                    ctxTarget.fillStyle = '#94a3b8'; ctxTarget.font = `${isExport ? 14 : 9}px Arial`; 
+                    ctxTarget.fillText(`${obj.length}x${obj.width}x${obj.height}mm`, 0, isExport ? 30 : 20);
+                } 
                 ctxTarget.restore();
             });
         }
@@ -1530,6 +1533,22 @@
                 base.position.y = bH/2; base.castShadow = true; group.add(base);
                 const glass = new THREE.Mesh(new THREE.BoxGeometry(obj.length - 20, obj.height * 0.4, obj.width - 20), new THREE.MeshStandardMaterial({ color: 0xffffff, transparent: true, opacity: 0.3 }));
                 glass.position.y = bH + (obj.height * 0.4)/2; group.add(glass);
+            } else if (obj.style === 'pillar' || obj.type === 'wall') {
+                // 柱子和牆身使用紋理貼圖
+                const textureLoader = new THREE.TextureLoader();
+                textureLoader.load('https://raw.githubusercontent.com/citistorekin/3D-Layout-Assets/refs/heads/main/Texture/Paller.jpg', function(texture) {
+                    texture.wrapS = THREE.RepeatWrapping;
+                    texture.wrapT = THREE.RepeatWrapping;
+                    texture.repeat.set(obj.length / 500, obj.height / 500);
+                    const pillarMat = new THREE.MeshStandardMaterial({ map: texture, color: obj.color, roughness: 0.6, metalness: 0.3 });
+                    const base = new THREE.Mesh(new THREE.BoxGeometry(obj.length, obj.height, obj.width), pillarMat);
+                    base.position.y = obj.height/2; base.castShadow = true; base.receiveShadow = true;
+                    group.add(base);
+                }, undefined, function(error) {
+                    console.warn("紋理載入失敗，採用預設材質", error);
+                    const base = new THREE.Mesh(new THREE.BoxGeometry(obj.length, obj.height, obj.width), new THREE.MeshStandardMaterial({ color: obj.color, roughness: 0.5, metalness: 0.1 }));
+                    base.position.y = obj.height/2; base.castShadow = true; group.add(base);
+                });
             } else {
                 const base = new THREE.Mesh(new THREE.BoxGeometry(obj.length, obj.height, obj.width), new THREE.MeshStandardMaterial({ color: obj.color, roughness: 0.5, metalness: 0.1 }));
                 base.position.y = obj.height/2; base.castShadow = true; group.add(base);
@@ -1907,19 +1926,46 @@
             }
             const newObj = JSON.parse(JSON.stringify(clipboard));
             newObj.id = `shelf-${Date.now()}`;
-            // 新物件位置在原物件旁邊 (偏移 200mm)
-            newObj.x = clipboard.x + 200;
-            newObj.y = clipboard.y;
             
-            // 檢查新位置是否允許
-            if (isPositionAllowed(newObj, objects, barriers)) {
+            // 嘗試在原物件旁邊放置，如果失敗則自動尋找空位
+            let isPlaced = false;
+            const offsetStep = 150;
+            const maxAttempts = 20;
+            
+            for (let attempt = 0; attempt < maxAttempts && !isPlaced; attempt++) {
+                // 嘗試四個方向：右、下、左、上
+                const directions = [
+                    { dx: offsetStep * (attempt + 1), dy: 0 },  // 右
+                    { dx: 0, dy: offsetStep * (attempt + 1) },  // 下
+                    { dx: -offsetStep * (attempt + 1), dy: 0 }, // 左
+                    { dx: 0, dy: -offsetStep * (attempt + 1) }  // 上
+                ];
+                
+                for (let dir of directions) {
+                    newObj.x = clipboard.x + dir.dx;
+                    newObj.y = clipboard.y + dir.dy;
+                    
+                    // 檢查是否在空間範圍內
+                    if (newObj.x - newObj.length/2 < 0 || newObj.x + newObj.length/2 > spaceWidth ||
+                        newObj.y - newObj.width/2 < 0 || newObj.y + newObj.width/2 > spaceHeight) {
+                        continue;
+                    }
+                    
+                    if (isPositionAllowed(newObj, objects, barriers)) {
+                        isPlaced = true;
+                        break;
+                    }
+                }
+            }
+            
+            if (isPlaced) {
                 objects.push(newObj);
                 selectedId = newObj.id;
                 createObject3D(newObj);
                 drawFloorplan();
                 showToast("✅ 物件已貼上！");
             } else {
-                showToast("❌ 貼上位置被阻擋，請移動物件後重試！");
+                showToast("❌ 無足夠空位貼上物件，請先清理空間！");
             }
         }
 
@@ -2010,8 +2056,12 @@
                     if (isPositionAllowed({ ...obj, y: finalY }, objects, barriers)) {
 
             // 自訂牆身表單事件
+            let isWallFormSubmitting = false;
             document.getElementById('customWallForm').addEventListener('submit', e => {
                 e.preventDefault();
+                if (isWallFormSubmitting) return;
+                isWallFormSubmitting = true;
+                
                 const length = parseInt(document.getElementById('wallLength').value);
                 const thickness = parseInt(document.getElementById('wallThickness').value);
                 const height = parseInt(document.getElementById('wallHeight').value);
@@ -2023,6 +2073,8 @@
                 } else {
                     showToast("❌ 請填入所有牆身參數！");
                 }
+                
+                setTimeout(() => { isWallFormSubmitting = false; }, 500);
             });
                         obj.y = finalY;
                         moved = true;
