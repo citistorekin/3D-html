@@ -119,6 +119,10 @@
             <button onclick="addShelfPreset('H')" class="shelf-btn w-16 h-12 rounded-lg border border-slate-700 bg-slate-850 hover:border-emerald-500 text-xs font-bold transition flex flex-col items-center justify-center gap-0.5 text-slate-300">
                 <i class="fa-solid fa-layer-group text-xs"></i><span>貨架 H</span>
             </button>
+            <div class="w-12 h-px bg-slate-800 my-1"></div>
+            <button onclick="openModal('customWallModal')" class="w-16 py-2.5 rounded-lg border border-dashed border-slate-700 hover:border-emerald-500 bg-slate-900/55 hover:bg-slate-800 text-[10px] font-bold text-emerald-400 flex flex-col items-center gap-1 shadow-md">
+                <i class="fa-solid fa-rectangle-landscape text-sm"></i><span>自訂牆身</span>
+            </button>
         </div>
 
         <div class="flex-1 flex overflow-hidden h-full">
@@ -144,7 +148,8 @@
                                 <i class="fa-solid fa-triangle-exclamation"></i> 碰撞阻擋！
                             </span>
                         </div>
-                        <div class="flex gap-1.5">
+                        <input type="text" id="objectDescriptionInput" placeholder="輸入物件說明文字..." class="bg-slate-800 border border-slate-700 rounded px-2 py-1 text-xs text-slate-200 placeholder-slate-500 hidden" maxlength="50">
+                        <div class="flex gap-1.5 items-center">
                             <button id="rotateLeftBtn" class="bg-slate-800 hover:bg-slate-700 p-1 px-2 rounded border border-slate-700 transition" title="逆時針轉 45°">
                                 <i class="fa-solid fa-rotate-left text-slate-300"></i> -45°
                             </button>
@@ -154,10 +159,22 @@
                             <button id="mirrorObjectBtn" class="bg-slate-800 hover:bg-slate-700 p-1 px-2 rounded border border-slate-700 transition" title="前後水平鏡像切換">
                                 <i class="fa-solid fa-arrows-left-right text-slate-300"></i> 鏡像
                             </button>
+                            <button id="copyObjectBtn" class="bg-slate-800 hover:bg-slate-700 p-1 px-2 rounded border border-slate-700 transition" title="複製選取的物件 (Ctrl+C)">
+                                <i class="fa-solid fa-copy text-slate-300"></i> 複製
+                            </button>
+                            <button id="pasteObjectBtn" class="bg-slate-800 hover:bg-slate-700 p-1 px-2 rounded border border-slate-700 transition" title="貼上複製的物件 (Ctrl+V)">
+                                <i class="fa-solid fa-paste text-slate-300"></i> 貼上
+                            </button>
                             <button id="deleteObjectBtn" class="bg-rose-950/50 hover:bg-rose-900 border border-rose-800 text-rose-300 p-1 px-2 rounded transition">
                                 <i class="fa-solid fa-trash-can"></i> 刪除
                             </button>
                         </div>
+                    </div>
+
+                    <!-- 物件說明文字輸入框 -->
+                    <div class="absolute bottom-24 left-4 right-4 bg-slate-900/95 backdrop-blur-md border border-slate-700/50 rounded-lg p-2.5 text-[11px] text-slate-300 z-10 hidden" id="descriptionInputContainer">
+                        <label class="block text-slate-400 mb-1.5">物件說明文字：</label>
+                        <input type="text" id="objectDescriptionInputFull" placeholder="輸入物件說明文字..." class="w-full bg-slate-800 border border-slate-700 rounded px-2 py-1.5 text-xs text-slate-200 placeholder-slate-500" maxlength="100">
                     </div>
 
                     <!-- ⭐ 修改項目 4: 取消縮小功能按鈕下方不知名(復位)按鈕 ⭐ -->
@@ -220,6 +237,33 @@
         </div>
     </div>
 
+    <div id="customWallModal" class="fixed inset-0 bg-slate-950/80 backdrop-blur-sm z-50 hidden opacity-0 transition-opacity flex items-center justify-center">
+        <div class="bg-slate-900 border border-slate-800 rounded-2xl w-full max-w-sm overflow-hidden shadow-2xl transform scale-95 transition-transform">
+            <div class="px-6 py-4 border-b border-slate-800 flex justify-between items-center bg-slate-950/50">
+                <h3 class="text-sm font-bold text-white"><i class="fa-solid fa-rectangle-landscape text-emerald-500"></i> 自訂牆身</h3>
+                <button onclick="closeModal('customWallModal')" class="text-slate-400 hover:text-white"><i class="fa-solid fa-xmark text-lg"></i></button>
+            </div>
+            <form id="customWallForm" class="p-6 space-y-4">
+                <div>
+                    <label class="block text-[10px] font-semibold text-slate-400 mb-1.5">長度 (mm)</label>
+                    <input type="number" id="wallLength" required min="100" max="30000" value="2000" class="w-full bg-slate-950 border border-slate-800 rounded-lg px-3 py-2 text-slate-200 text-xs">
+                </div>
+                <div>
+                    <label class="block text-[10px] font-semibold text-slate-400 mb-1.5">厚度 (mm)</label>
+                    <input type="number" id="wallThickness" required min="50" max="1000" value="200" class="w-full bg-slate-950 border border-slate-800 rounded-lg px-3 py-2 text-slate-200 text-xs">
+                </div>
+                <div>
+                    <label class="block text-[10px] font-semibold text-slate-400 mb-1.5">高度 (mm)</label>
+                    <input type="number" id="wallHeight" required min="500" max="5000" value="2400" class="w-full bg-slate-950 border border-slate-800 rounded-lg px-3 py-2 text-slate-200 text-xs">
+                </div>
+                <div class="flex justify-end gap-3 pt-2">
+                    <button type="button" onclick="closeModal('customWallModal')" class="bg-slate-800 text-slate-300 px-4 py-2 rounded-lg text-xs">取消</button>
+                    <button type="submit" class="bg-emerald-600 text-white px-5 py-2 rounded-lg text-xs font-semibold">新增牆身</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
     <div id="toastNotification" class="fixed bottom-6 right-6 bg-slate-900 border border-indigo-500/30 text-indigo-200 px-4 py-3 rounded-xl shadow-2xl flex items-center gap-2.5 text-xs transform translate-y-20 opacity-0 transition-all pointer-events-none z-[200]">
         <i class="fa-solid fa-circle-info text-indigo-400"></i><span id="toastText">訊息</span>
     </div>
@@ -266,6 +310,7 @@
         let barriers = [];
         let objects = [];
         let selectedId = null;
+        let clipboard = null; // 用於複製/貼上的剪貼板
 
         // Interaction State
         let isDragging = false;
@@ -1008,8 +1053,8 @@
             barriers.forEach(bar => {
                 if (bar.type === 'pillar') {
                     ctxTarget.save();
-                    ctxTarget.fillStyle = '#1e293b';
-                    ctxTarget.strokeStyle = '#64748b';
+                    ctxTarget.fillStyle = '#000000';
+                    ctxTarget.strokeStyle = '#404040';
                     ctxTarget.lineWidth = isExport ? 3 : 1.5;
 
                     if (bar.polygon && bar.polygon.length > 2) {
@@ -1057,8 +1102,24 @@
                 ctxTarget.restore();
 
                 ctxTarget.save(); ctxTarget.translate(obj.x / scaleDivider, obj.y / scaleDivider);
+                
+                // 繪製物件說明文字（在名稱上方）
+                if (obj.description && obj.description.trim()) {
+                    ctxTarget.font = `300 ${isExport ? 18 : 13}px "Microsoft JhengHei"`;
+                    const descW = ctxTarget.measureText(obj.description).width;
+                    ctxTarget.fillStyle = 'rgba(15, 23, 42, 0.9)';
+                    ctxTarget.fillRect(-descW/2 - (isExport?12:8), -(isExport?50:35), descW + (isExport?24:16), (isExport?32:22));
+                    ctxTarget.strokeStyle = isSel ? '#818cf8' : 'rgba(255, 255, 255, 0.15)';
+                    ctxTarget.lineWidth = isExport?2:1;
+                    ctxTarget.strokeRect(-descW/2 - (isExport?12:8), -(isExport?50:35), descW + (isExport?24:16), (isExport?32:22));
+                    ctxTarget.fillStyle = '#ffffff';
+                    ctxTarget.textAlign = 'center';
+                    ctxTarget.textBaseline = 'middle';
+                    ctxTarget.fillText(obj.description, 0, -(isExport?34:23));
+                }
+                
                 ctxTarget.font = `300 ${isExport ? 20 : 12}px "Microsoft JhengHei"`; 
-                const displayString = obj.mirrored ? `${obj.name} (M)` : obj.name;
+                const displayString = obj.name;
                 const txtW = ctxTarget.measureText(displayString).width;
                 ctxTarget.fillStyle = 'rgba(15, 23, 42, 0.9)'; ctxTarget.fillRect(-txtW/2 - (isExport?12:8), -(isExport?18:12), txtW + (isExport?24:16), (isExport?36:24));
                 ctxTarget.strokeStyle = isSel ? '#818cf8' : 'rgba(255, 255, 255, 0.15)'; ctxTarget.lineWidth = isExport?2:1; ctxTarget.strokeRect(-txtW/2 - (isExport?12:8), -(isExport?18:12), txtW + (isExport?24:16), (isExport?36:24));
@@ -1563,7 +1624,7 @@
 
         function addShelfPreset(key) {
             const config = SHELF_PRESETS[key]; if (!config) return;
-            const newObj = { id: `shelf-${key}-${Date.now()}`, name: config.name, x: config.length/2 + 50, y: config.width/2 + 50, length: config.length, width: config.width, height: config.height, angle: 0, color: config.color, style: config.style, glbPath: config.glbPath, mirrored: false };
+            const newObj = { id: `shelf-${key}-${Date.now()}`, name: config.name, x: config.length/2 + 50, y: config.width/2 + 50, length: config.length, width: config.width, height: config.height, angle: 0, color: config.color, style: config.style, glbPath: config.glbPath, mirrored: false, description: '' };
             
             let isPlaced = false;
             for (let dy = 0; dy < spaceHeight - config.width; dy += 200) {
@@ -1783,6 +1844,85 @@
             } catch (e) { showToast("❌ 導出錯誤！"); console.error(e); }
         }
 
+
+        // --- 8.6 自訂牆身功能 ---
+        function addCustomWall(length, thickness, height) {
+            const newWall = {
+                id: `wall-${Date.now()}`,
+                name: `自訂牆身 ${Math.floor(Math.random() * 1000)}`,
+                x: length / 2 + 50,
+                y: thickness / 2 + 50,
+                length: length,
+                width: thickness,
+                height: height,
+                angle: 0,
+                color: '#000000',
+                style: 'pillar',
+                mirrored: false,
+                description: '',
+                type: 'wall'
+            };
+            
+            let isPlaced = false;
+            for (let dy = 0; dy < spaceHeight - thickness; dy += 200) {
+                for (let dx = 0; dx < spaceWidth - length; dx += 200) {
+                    newWall.x = length / 2 + 50 + dx;
+                    newWall.y = thickness / 2 + 50 + dy;
+                    if (isPositionAllowed(newWall, objects, barriers)) {
+                        isPlaced = true;
+                        break;
+                    }
+                }
+                if (isPlaced) break;
+            }
+            
+            if (isPlaced) {
+                objects.push(newWall);
+                selectedId = newWall.id;
+                createObject3D(newWall);
+                drawFloorplan();
+                showToast(`✅ 自訂牆身已新增！尺寸：${length}x${thickness}x${height}mm`);
+            } else {
+                showToast("❌ 無空位可放置新牆身！");
+            }
+        }
+
+                // --- 8.5 複製/貼上功能 ---
+        function copySelectedObject() {
+            if (!selectedId) {
+                showToast("請先選擇一個物件！");
+                return;
+            }
+            const obj = objects.find(o => o.id === selectedId);
+            if (obj) {
+                clipboard = JSON.parse(JSON.stringify(obj));
+                showToast("✅ 物件已複製到剪貼板！");
+            }
+        }
+
+        function pasteObject() {
+            if (!clipboard) {
+                showToast("剪貼板中沒有物件！");
+                return;
+            }
+            const newObj = JSON.parse(JSON.stringify(clipboard));
+            newObj.id = `shelf-${Date.now()}`;
+            // 新物件位置在原物件旁邊 (偏移 200mm)
+            newObj.x = clipboard.x + 200;
+            newObj.y = clipboard.y;
+            
+            // 檢查新位置是否允許
+            if (isPositionAllowed(newObj, objects, barriers)) {
+                objects.push(newObj);
+                selectedId = newObj.id;
+                createObject3D(newObj);
+                drawFloorplan();
+                showToast("✅ 物件已貼上！");
+            } else {
+                showToast("❌ 貼上位置被阻擋，請移動物件後重試！");
+            }
+        }
+
         // --- 9. Event Listeners ---
         function initEventListeners() {
             canvas.addEventListener('wheel', e => {
@@ -1809,11 +1949,14 @@
                     }
                     if (found) {
                         selectedId = found.id; isDragging = true; dragOffset = { x: clickPos.x - found.x, y: clickPos.y - found.y };
-                        const dispName = found.mirrored ? `${found.name} (M)` : found.name;
+                        const dispName = found.name;
                         document.getElementById('selectedObjectName').innerHTML = `<i class="fa-solid fa-cube text-emerald-400 mr-1.5"></i> ${dispName}`;
+                        document.getElementById('objectDescriptionInputFull').value = found.description || '';
+                        document.getElementById('descriptionInputContainer').classList.remove('hidden');
                     } else { 
                         selectedId = null; 
-                        document.getElementById('selectedObjectName').innerText = "未選取物件"; 
+                        document.getElementById('selectedObjectName').innerText = "未選取物件";
+                        document.getElementById('descriptionInputContainer').classList.add('hidden');
                         isPanning = true;
                         lastPanMouse = m;
                     }
@@ -1865,6 +2008,22 @@
                         moved = true;
                     }
                     if (isPositionAllowed({ ...obj, y: finalY }, objects, barriers)) {
+
+            // 自訂牆身表單事件
+            document.getElementById('customWallForm').addEventListener('submit', e => {
+                e.preventDefault();
+                const length = parseInt(document.getElementById('wallLength').value);
+                const thickness = parseInt(document.getElementById('wallThickness').value);
+                const height = parseInt(document.getElementById('wallHeight').value);
+                
+                if (length && thickness && height) {
+                    addCustomWall(length, thickness, height);
+                    closeModal('customWallModal');
+                    document.getElementById('customWallForm').reset();
+                } else {
+                    showToast("❌ 請填入所有牆身參數！");
+                }
+            });
                         obj.y = finalY;
                         moved = true;
                     }
@@ -1906,7 +2065,7 @@
                         obj.mirrored = !obj.mirrored;
                         createObject3D(obj);
                         drawFloorplan();
-                        const dispName = obj.mirrored ? `${obj.name} (M)` : obj.name;
+                        const dispName = obj.name;
                         document.getElementById('selectedObjectName').innerHTML = `<i class="fa-solid fa-cube text-emerald-400 mr-1.5"></i> ${dispName}`;
                         showToast(`已${obj.mirrored ? '啟用' : '停用'}鏡像。`);
                     }
@@ -1920,6 +2079,39 @@
             };
             document.getElementById('zoomInBtn').onclick = () => { zoom = Math.min(1.5, zoom * 1.2); drawFloorplan(); };
             document.getElementById('zoomOutBtn').onclick = () => { zoom = Math.max(0.015, zoom / 1.2); drawFloorplan(); };
+            document.getElementById('copyObjectBtn').onclick = copySelectedObject;
+            document.getElementById('pasteObjectBtn').onclick = pasteObject;
+
+            // Keyboard shortcuts: Ctrl+C copy, Ctrl+V paste
+            document.addEventListener('keydown', e => {
+                if (e.ctrlKey && e.key === 'c') {
+                    e.preventDefault();
+                    copySelectedObject();
+                } else if (e.ctrlKey && e.key === 'v') {
+                    e.preventDefault();
+                    pasteObject();
+                }
+            });
+
+            // 物件說明文字輸入框事件
+            document.getElementById('objectDescriptionInputFull').addEventListener('input', e => {
+                if (selectedId) {
+                    const obj = objects.find(o => o.id === selectedId);
+                    if (obj) {
+                        obj.description = e.target.value;
+                        drawFloorplan();
+                    }
+                }
+            });
+
+            // 描述文字輸入框的失焦事件
+            document.getElementById('objectDescriptionInputFull').addEventListener('blur', () => {
+                setTimeout(() => {
+                    if (!selectedId) {
+                        document.getElementById('descriptionInputContainer').classList.add('hidden');
+                    }
+                }, 100);
+            });
         }
 
         // --- 10. Bootstrap ---
