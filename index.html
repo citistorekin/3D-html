@@ -1854,7 +1854,83 @@
                 for (let i=0; i<swS; i+=100) { ctx2D.beginPath(); ctx2D.moveTo(i, 0); ctx2D.lineTo(i, shS); ctx2D.stroke(); }
                 for (let j=0; j<shS; j+=100) { ctx2D.beginPath(); ctx2D.moveTo(0, j); ctx2D.lineTo(swS, j); ctx2D.stroke(); }
                 
-                drawAll2DObjects(ctx2D, SCALE, true);
+                // Draw walls first (without labels), then other objects (with labels)
+                objects.forEach(obj => {
+                    if (obj.type === 'wall') {
+                        const scX = (obj.x - panX) / zoom * SCALE;
+                        const scY = (obj.y - panY) / zoom * SCALE;
+                        const scW = obj.length / zoom * SCALE;
+                        const scH = obj.width / zoom * SCALE;
+                        const angle = (obj.angle * Math.PI) / 180;
+                        
+                        ctx2D.save();
+                        ctx2D.translate(scX, scY);
+                        ctx2D.rotate(angle);
+                        ctx2D.fillStyle = '#000000';
+                        ctx2D.strokeStyle = '#404040';
+                        ctx2D.lineWidth = 2;
+                        ctx2D.fillRect(-scW/2, -scH/2, scW, scH);
+                        ctx2D.strokeRect(-scW/2, -scH/2, scW, scH);
+                        ctx2D.restore();
+                    }
+                });
+                
+                // Draw other objects with labels
+                objects.forEach(obj => {
+                    if (obj.type !== 'wall') {
+                        const scX = (obj.x - panX) / zoom * SCALE;
+                        const scY = (obj.y - panY) / zoom * SCALE;
+                        const scW = obj.length / zoom * SCALE;
+                        const scH = obj.width / zoom * SCALE;
+                        const angle = (obj.angle * Math.PI) / 180;
+                        const isSel = selectedId === obj.id;
+                        
+                        ctx2D.save();
+                        ctx2D.translate(scX, scY);
+                        ctx2D.rotate(angle);
+                        
+                        // Draw object
+                        ctx2D.fillStyle = obj.color;
+                        ctx2D.strokeStyle = isSel ? '#818cf8' : '#94a3b8';
+                        ctx2D.lineWidth = 2;
+                        ctx2D.fillRect(-scW/2, -scH/2, scW, scH);
+                        ctx2D.strokeRect(-scW/2, -scH/2, scW, scH);
+                        
+                        // Draw description text
+                        if (obj.description && obj.description.trim()) {
+                            ctx2D.font = '13px "Microsoft JhengHei"';
+                            const descW = ctx2D.measureText(obj.description).width;
+                            ctx2D.fillStyle = 'rgba(15, 23, 42, 0.9)';
+                            ctx2D.fillRect(-descW/2 - 8, -50, descW + 16, 22);
+                            ctx2D.strokeStyle = isSel ? '#818cf8' : 'rgba(255, 255, 255, 0.15)';
+                            ctx2D.lineWidth = 1;
+                            ctx2D.strokeRect(-descW/2 - 8, -50, descW + 16, 22);
+                            ctx2D.fillStyle = '#ffffff';
+                            ctx2D.textAlign = 'center';
+                            ctx2D.textBaseline = 'middle';
+                            ctx2D.fillText(obj.description, 0, -39);
+                        }
+                        
+                        // Draw name and dimensions
+                        ctx2D.font = '12px "Microsoft JhengHei"';
+                        const displayString = obj.name;
+                        const txtW = ctx2D.measureText(displayString).width;
+                        ctx2D.fillStyle = 'rgba(15, 23, 42, 0.9)';
+                        ctx2D.fillRect(-txtW/2 - 8, -18, txtW + 16, 24);
+                        ctx2D.strokeStyle = isSel ? '#818cf8' : 'rgba(255, 255, 255, 0.15)';
+                        ctx2D.lineWidth = 1;
+                        ctx2D.strokeRect(-txtW/2 - 8, -18, txtW + 16, 24);
+                        ctx2D.fillStyle = '#f8fafc';
+                        ctx2D.textAlign = 'center';
+                        ctx2D.textBaseline = 'middle';
+                        ctx2D.fillText(displayString, 0, 0);
+                        ctx2D.fillStyle = '#94a3b8';
+                        ctx2D.font = '9px Arial';
+                        ctx2D.fillText(`${obj.length}x${obj.width}x${obj.height}mm`, 0, 20);
+                        
+                        ctx2D.restore();
+                    }
+                });
                 
                 drawDimensionLine(ctx2D, 0, 0, swS, 0, `${Math.round(spaceWidth)}mm`, -45, false, true);
                 drawDimensionLine(ctx2D, swS, 0, swS, shS, `${Math.round(spaceHeight)}mm`, 45, true, true);
@@ -1881,7 +1957,7 @@
                 width: thickness,
                 height: height,
                 angle: 0,
-                color: '#000000',
+                color: '#bab7b1',
                 style: 'pillar',
                 mirrored: false,
                 description: '',
