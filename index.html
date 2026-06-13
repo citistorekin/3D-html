@@ -1527,6 +1527,12 @@
                     const board = new THREE.Mesh(new THREE.BoxGeometry(obj.length - 20, 25, obj.width - 20), boardMat);
                     board.position.set(0, 150 + (i * ((obj.height - 300) / 4)), 0); board.castShadow = true; group.add(board);
                 }
+            } else if (obj.type === 'wall') {
+                // 牆身使用純色米灰色，不使用貼圖
+                const wallMat = new THREE.MeshStandardMaterial({ color: 0xbab7b1, roughness: 0.5, metalness: 0.2 });
+                const base = new THREE.Mesh(new THREE.BoxGeometry(obj.length, obj.height, obj.width), wallMat);
+                base.position.y = obj.height/2; base.castShadow = true; base.receiveShadow = true;
+                group.add(base);
             } else if (obj.style === 'cabinet') {
                 const bH = obj.height * 0.6;
                 const base = new THREE.Mesh(new THREE.BoxGeometry(obj.length, bH, obj.width), new THREE.MeshStandardMaterial({ color: obj.color, roughness: 0.2, metalness: 0.6 }));
@@ -1549,12 +1555,6 @@
                     const base = new THREE.Mesh(new THREE.BoxGeometry(obj.length, obj.height, obj.width), new THREE.MeshStandardMaterial({ color: obj.color, roughness: 0.5, metalness: 0.1 }));
                     base.position.y = obj.height/2; base.castShadow = true; group.add(base);
                 });
-            } else if (obj.type === 'wall') {
-                // 牆身使用純色米灰色，不使用貼圖
-                const wallMat = new THREE.MeshStandardMaterial({ color: 0xbab7b1, roughness: 0.5, metalness: 0.2 });
-                const base = new THREE.Mesh(new THREE.BoxGeometry(obj.length, obj.height, obj.width), wallMat);
-                base.position.y = obj.height/2; base.castShadow = true; base.receiveShadow = true;
-                group.add(base);
             } else {
                 const base = new THREE.Mesh(new THREE.BoxGeometry(obj.length, obj.height, obj.width), new THREE.MeshStandardMaterial({ color: obj.color, roughness: 0.5, metalness: 0.1 }));
                 base.position.y = obj.height/2; base.castShadow = true; group.add(base);
