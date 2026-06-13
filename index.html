@@ -1533,8 +1533,8 @@
                 base.position.y = bH/2; base.castShadow = true; group.add(base);
                 const glass = new THREE.Mesh(new THREE.BoxGeometry(obj.length - 20, obj.height * 0.4, obj.width - 20), new THREE.MeshStandardMaterial({ color: 0xffffff, transparent: true, opacity: 0.3 }));
                 glass.position.y = bH + (obj.height * 0.4)/2; group.add(glass);
-            } else if (obj.style === 'pillar' || obj.type === 'wall') {
-                // 柱子和牆身使用紋理貼圖
+            } else if (obj.style === 'pillar') {
+                // 柱子使用紋理貼圖
                 const textureLoader = new THREE.TextureLoader();
                 textureLoader.load('https://raw.githubusercontent.com/citistorekin/3D-Layout-Assets/refs/heads/main/Texture/Paller.jpg', function(texture) {
                     texture.wrapS = THREE.RepeatWrapping;
@@ -1549,6 +1549,12 @@
                     const base = new THREE.Mesh(new THREE.BoxGeometry(obj.length, obj.height, obj.width), new THREE.MeshStandardMaterial({ color: obj.color, roughness: 0.5, metalness: 0.1 }));
                     base.position.y = obj.height/2; base.castShadow = true; group.add(base);
                 });
+            } else if (obj.type === 'wall') {
+                // 牆身使用純色米灰色，不使用貼圖
+                const wallMat = new THREE.MeshStandardMaterial({ color: 0xbab7b1, roughness: 0.5, metalness: 0.2 });
+                const base = new THREE.Mesh(new THREE.BoxGeometry(obj.length, obj.height, obj.width), wallMat);
+                base.position.y = obj.height/2; base.castShadow = true; base.receiveShadow = true;
+                group.add(base);
             } else {
                 const base = new THREE.Mesh(new THREE.BoxGeometry(obj.length, obj.height, obj.width), new THREE.MeshStandardMaterial({ color: obj.color, roughness: 0.5, metalness: 0.1 }));
                 base.position.y = obj.height/2; base.castShadow = true; group.add(base);
@@ -2054,28 +2060,6 @@
                         moved = true;
                     }
                     if (isPositionAllowed({ ...obj, y: finalY }, objects, barriers)) {
-
-            // 自訂牆身表單事件
-            let isWallFormSubmitting = false;
-            document.getElementById('customWallForm').addEventListener('submit', e => {
-                e.preventDefault();
-                if (isWallFormSubmitting) return;
-                isWallFormSubmitting = true;
-                
-                const length = parseInt(document.getElementById('wallLength').value);
-                const thickness = parseInt(document.getElementById('wallThickness').value);
-                const height = parseInt(document.getElementById('wallHeight').value);
-                
-                if (length && thickness && height) {
-                    addCustomWall(length, thickness, height);
-                    closeModal('customWallModal');
-                    document.getElementById('customWallForm').reset();
-                } else {
-                    showToast("❌ 請填入所有牆身參數！");
-                }
-                
-                setTimeout(() => { isWallFormSubmitting = false; }, 500);
-            });
                         obj.y = finalY;
                         moved = true;
                     }
@@ -2126,7 +2110,26 @@
                 }
             };
 
-            document.getElementById('deleteObjectBtn').onclick = () => {
+            // 自訂牆身表單事件監聽
+            const wallFormElement = document.getElementById('customWallForm');
+            if (wallFormElement) {
+                wallFormElement.addEventListener('submit', e => {
+                    e.preventDefault();
+                    const length = parseInt(document.getElementById('wallLength').value);
+                    const thickness = parseInt(document.getElementById('wallThickness').value);
+                    const height = parseInt(document.getElementById('wallHeight').value);
+                    
+                    if (length && thickness && height) {
+                        addCustomWall(length, thickness, height);
+                        closeModal('customWallModal');
+                        wallFormElement.reset();
+                    } else {
+                        showToast("❌ 請填入所有牆身參數！");
+                    }
+                });
+            }
+
+                        document.getElementById('deleteObjectBtn').onclick = () => {
                 if (selectedId) { objects = objects.filter(o => o.id !== selectedId); removeObject3D(selectedId); selectedId = null; document.getElementById('selectedObjectName').innerText = "未選取物件"; drawFloorplan(); }
             };
             document.getElementById('zoomInBtn').onclick = () => { zoom = Math.min(1.5, zoom * 1.2); drawFloorplan(); };
