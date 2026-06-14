@@ -1123,10 +1123,24 @@
                     ctxTarget.font = `300 ${isExport ? 20 : 12}px "Microsoft JhengHei"`; 
                     const displayString = obj.name;
                     const txtW = ctxTarget.measureText(displayString).width;
-                    ctxTarget.fillStyle = 'rgba(15, 23, 42, 0.9)'; ctxTarget.fillRect(-txtW/2 - (isExport?12:8), -(isExport?18:12), txtW + (isExport?24:16), (isExport?36:24));
-                    ctxTarget.strokeStyle = isSel ? '#818cf8' : 'rgba(255, 255, 255, 0.15)'; ctxTarget.lineWidth = isExport?2:1; ctxTarget.strokeRect(-txtW/2 - (isExport?12:8), -(isExport?18:12), txtW + (isExport?24:16), (isExport?36:24));
-                    ctxTarget.fillStyle = '#f8fafc'; ctxTarget.textAlign = 'center'; ctxTarget.textBaseline = 'middle'; ctxTarget.fillText(displayString, 0, 0);
-                    ctxTarget.fillStyle = '#94a3b8'; ctxTarget.font = `${isExport ? 14 : 9}px Arial`; 
+                    
+                    // 限制標籤在物件範圍內
+                    const maxLabelWidth = obj.length / scaleDivider - (isExport?24:16);
+                    const labelWidth = Math.min(txtW + (isExport?24:16), maxLabelWidth);
+                    const labelX = -labelWidth/2;
+                    const labelY = -(isExport?18:12);
+                    
+                    ctxTarget.fillStyle = 'rgba(15, 23, 42, 0.9)'; 
+                    ctxTarget.fillRect(labelX, labelY, labelWidth, (isExport?36:24));
+                    ctxTarget.strokeStyle = isSel ? '#818cf8' : 'rgba(255, 255, 255, 0.15)'; 
+                    ctxTarget.lineWidth = isExport?2:1; 
+                    ctxTarget.strokeRect(labelX, labelY, labelWidth, (isExport?36:24));
+                    ctxTarget.fillStyle = '#f8fafc'; 
+                    ctxTarget.textAlign = 'center'; 
+                    ctxTarget.textBaseline = 'middle'; 
+                    ctxTarget.fillText(displayString, 0, 0);
+                    ctxTarget.fillStyle = '#94a3b8'; 
+                    ctxTarget.font = `${isExport ? 14 : 9}px Arial`; 
                     ctxTarget.fillText(`${obj.length}x${obj.width}x${obj.height}mm`, 0, isExport ? 30 : 20);
                 } 
                 ctxTarget.restore();
@@ -1151,7 +1165,7 @@
             tempCtx.fillStyle = '#ffffff'; tempCtx.font = 'bold 32px "Microsoft JhengHei", Arial'; // 放大 1.6 倍 (20px -> 32px)
             tempCtx.fillText('增添貨架統計清單 (Shelves Inventory):', 450, 1310);
             
-            const stats = {}; objects.forEach(obj => { stats[obj.name] = (stats[obj.name] || 0) + 1; });
+            const stats = {}; objects.forEach(obj => { if (obj.type !== 'wall') { stats[obj.name] = (stats[obj.name] || 0) + 1; } });
             const items = Object.entries(stats);
             if (items.length === 0) {
                 tempCtx.fillStyle = '#475569'; tempCtx.font = 'italic 29px "Microsoft JhengHei"'; // 放大 1.6 倍 (18px -> 29px)
