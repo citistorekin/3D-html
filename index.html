@@ -1183,11 +1183,44 @@
             }
         }
 
+        // --- 計算多邊形面積 (鞋帶定理 / Shoelace Formula) ---
+        function calculateAreaFromPolygons(polygons) {
+            if (!polygons || polygons.length === 0) {
+                // 無多邊形數據，使用長寬相乘
+                const areaMM2 = spaceWidth * spaceHeight;
+                return Math.round(areaMM2 / (304.8 * 304.8)); // 轉換為平方呎
+            }
+            
+            let totalAreaMM2 = 0;
+            
+            // 遍歷所有多邊形
+            polygons.forEach(polygon => {
+                if (!polygon || polygon.length < 3) return;
+                
+                // 應用鞋帶定理計算多邊形面積
+                let area = 0;
+                for (let i = 0; i < polygon.length; i++) {
+                    const p1 = polygon[i];
+                    const p2 = polygon[(i + 1) % polygon.length];
+                    area += (p1.x * p2.y - p2.x * p1.y);
+                }
+                area = Math.abs(area) / 2;
+                totalAreaMM2 += area;
+            });
+            
+            // 轉換為平方呎 (1 平方呎 = 304.8 x 304.8 mm²)
+            const areaSqFt = Math.round(totalAreaMM2 / (304.8 * 304.8));
+            return areaSqFt;
+        }
+
         function drawFloorplan() {
             ctx.clearRect(0, 0, canvas.width, canvas.height);
             ctx.save(); ctx.translate(panX, panY); ctx.scale(zoom, zoom);
 
             const sW = spaceWidth / SCALE, sH = spaceHeight / SCALE;
+            
+            // 計算並顯示面積
+            const areaSqFt = calculateAreaFromPolygons(floorPolygons);
             
             // 繪製 DXF 多邊形地面或默認矩形
             if (floorPolygons && floorPolygons.length > 0) {
@@ -1234,6 +1267,15 @@
 
             drawDimensionLine(ctx, 0, 0, sW, 0, `${Math.round(spaceWidth)}mm`, -45, false, false);
             drawDimensionLine(ctx, sW, 0, sW, sH, `${Math.round(spaceHeight)}mm`, 45, true, false);
+            ctx.restore();
+            
+            // 在網頁視窗左上方顯示面積（不包含在導出圖片中）
+            ctx.save();
+            ctx.font = 'bold 24px Arial';
+            ctx.fillStyle = '#ffffff';
+            ctx.textAlign = 'left';
+            ctx.textBaseline = 'top';
+            ctx.fillText(`AREA : ${areaSqFt} SQ.M`, 40, 40);
             ctx.restore();
         }
 
