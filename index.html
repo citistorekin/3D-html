@@ -1547,14 +1547,32 @@
                 gltfLoader.load(obj.glbPath, function (gltf) {
                     const object = gltf.scene;
                     
-                    // 強制更新世界矩陣以確保邊界框計算正確（特別是對於 Draco 壓縮模型）
+                    // 強制更新世界矩陣
                     object.updateMatrixWorld(true);
                     
-                    const box = new THREE.Box3().setFromObject(object);
-                    const size = box.getSize(new THREE.Vector3());
+                    // 精確計算：只考慮可見的網格（Mesh），排除燈光、相機等干擾節點
+                    let meshBox = new THREE.Box3();
+                    let hasMesh = false;
+                    
+                    object.traverse(function (child) {
+                        if (child.isMesh && child.geometry) {
+                            hasMesh = true;
+                            // 計算該網格的世界坐標邊界框
+                            const childBox = new THREE.Box3().setFromBufferGeometry(child.geometry);
+                            childBox.applyMatrix4(child.matrixWorld);
+                            meshBox.union(childBox);
+                        }
+                    });
+                    
+                    // 如果沒有找到網格，使用整個場景的邊界框
+                    if (!hasMesh) {
+                        meshBox = new THREE.Box3().setFromObject(object);
+                    }
+                    
+                    const size = meshBox.getSize(new THREE.Vector3());
                     
                     // 確保尺寸有效
-                    if (size.x === 0 || size.y === 0 || size.z === 0) {
+                    if (size.x <= 0 || size.y <= 0 || size.z <= 0) {
                         console.warn("警告：模型尺寸異常，使用預設縮放");
                         object.scale.set(1, 1, obj.mirrored ? -1 : 1);
                     } else {
