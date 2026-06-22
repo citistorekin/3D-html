@@ -1550,16 +1550,15 @@
                     // 強制更新世界矩陣
                     object.updateMatrixWorld(true);
                     
-                    // 精確計算：只考慮可見的網格（Mesh），排除燈光、相機等干擾節點
+                    // 計算邊界框：只考慮可見的網格（Mesh），排除燈光、相機等干擾節點
                     let meshBox = new THREE.Box3();
                     let hasMesh = false;
                     
                     object.traverse(function (child) {
-                        if (child.isMesh && child.geometry) {
+                        if (child.isMesh) {
                             hasMesh = true;
-                            // 計算該網格的世界坐標邊界框
-                            const childBox = new THREE.Box3().setFromBufferGeometry(child.geometry);
-                            childBox.applyMatrix4(child.matrixWorld);
+                            // 使用相容的方式計算網格邊界框
+                            const childBox = new THREE.Box3().setFromObject(child);
                             meshBox.union(childBox);
                         }
                     });
