@@ -1898,7 +1898,16 @@
             }
         }
         function saveDoubleImages() {
-            const plainName = currentPlanKey === 'Custom' ? "自訂空間" : (currentPlanKey === 'CV_Auto' ? "智慧解析空間" : `平面 ${currentPlanKey}`);
+            let plainName;
+            if (currentPlanKey === 'Custom') {
+                plainName = "自訂空間";
+            } else if (currentPlanKey === 'CV_Auto') {
+                plainName = "智慧解析空間";
+            } else if (FLOORPLAN_PRESETS[currentPlanKey]) {
+                plainName = FLOORPLAN_PRESETS[currentPlanKey].name;
+            } else {
+                plainName = `平面 ${currentPlanKey}`;
+            }
             const container = document.getElementById('threeContainer');
             if (!container || !renderer || !camera || !scene) return showToast("❌ 3D 渲染器未就緒！");
             
