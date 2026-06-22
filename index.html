@@ -8,6 +8,7 @@
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/loaders/GLTFLoader.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/loaders/DRACOLoader.js"></script>
     <style>
         ::-webkit-scrollbar { width: 6px; height: 6px; }
         ::-webkit-scrollbar-track { background: #111827; }
@@ -1538,6 +1539,11 @@
                 group.add(placeholder);
 
                 const gltfLoader = new THREE.GLTFLoader();
+                // 設定 DRACO 解碼器
+                const dracoLoader = new THREE.DRACOLoader();
+                dracoLoader.setDecoderPath('https://www.gstatic.com/draco/versioned/decoders/1.5.6/');
+                gltfLoader.setDRACOLoader(dracoLoader);
+                
                 gltfLoader.load(obj.glbPath, function (gltf) {
                     const object = gltf.scene;
                     const box = new THREE.Box3().setFromObject(object);
