@@ -1547,28 +1547,31 @@
                 gltfLoader.load(obj.glbPath, function (gltf) {
                     const object = gltf.scene;
                     
-                    // 強制更新世界矩陣
-                    object.updateMatrixWorld(true);
-                    
-                    // 計算邊界框：只考慮可見的網格（Mesh），排除燈光、相機等干擾節點
-                    let meshBox = new THREE.Box3();
-                    let hasMesh = false;
+                    // 純幾何頂點掃描：強制計算所有 Mesh 的幾何邊界，忽略節點座標
+                    let geometryBox = new THREE.Box3();
+                    let hasGeometry = false;
                     
                     object.traverse(function (child) {
-                        if (child.isMesh) {
-                            hasMesh = true;
-                            // 使用相容的方式計算網格邊界框
-                            const childBox = new THREE.Box3().setFromObject(child);
-                            meshBox.union(childBox);
+                        if (child.isMesh && child.geometry) {
+                            hasGeometry = true;
+                            // 強制計算幾何邊界框（基於頂點數據，不受節點位置影響）
+                            if (!child.geometry.boundingBox) {
+                                child.geometry.computeBoundingBox();
+                            }
+                            const localBox = child.geometry.boundingBox.clone();
+                            // 應用該 Mesh 的世界矩陣以轉換到世界坐標
+                            localBox.applyMatrix4(child.matrixWorld);
+                            geometryBox.union(localBox);
                         }
                     });
                     
-                    // 如果沒有找到網格，使用整個場景的邊界框
-                    if (!hasMesh) {
-                        meshBox = new THREE.Box3().setFromObject(object);
+                    // 如果沒有找到幾何體，使用整個場景的邊界框
+                    if (!hasGeometry) {
+                        object.updateMatrixWorld(true);
+                        geometryBox = new THREE.Box3().setFromObject(object);
                     }
                     
-                    const size = meshBox.getSize(new THREE.Vector3());
+                    const size = geometryBox.getSize(new THREE.Vector3());
                     
                     // 確保尺寸有效
                     if (size.x <= 0 || size.y <= 0 || size.z <= 0) {
