@@ -263,25 +263,25 @@
     <div id="customWallModal" class="fixed inset-0 bg-slate-950/80 backdrop-blur-sm z-50 hidden opacity-0 transition-opacity flex items-center justify-center">
         <div class="bg-slate-900 border border-slate-800 rounded-2xl w-full max-w-sm overflow-hidden shadow-2xl transform scale-95 transition-transform">
             <div class="px-6 py-4 border-b border-slate-800 flex justify-between items-center bg-slate-950/50">
-                <h3 class="text-sm font-bold text-white"><i class="fa-solid fa-rectangle-landscape text-emerald-500"></i> 自訂牆身</h3>
+                <h3 class="text-sm font-bold text-white"><i class="fa-solid fa-rectangle-landscape text-emerald-500"></i> 自訂柱/牆身</h3>
                 <button onclick="closeModal('customWallModal')" class="text-slate-400 hover:text-white"><i class="fa-solid fa-xmark text-lg"></i></button>
             </div>
             <form id="customWallForm" class="p-6 space-y-4">
                 <div>
                     <label class="block text-[10px] font-semibold text-slate-400 mb-1.5">長度 (mm)</label>
-                    <input type="number" id="wallLength" required min="100" max="30000" value="2000" class="w-full bg-slate-950 border border-slate-800 rounded-lg px-3 py-2 text-slate-200 text-xs">
+                    <input type="number" id="wallLength" required min="10" max="30000" value="2000" class="w-full bg-slate-950 border border-slate-800 rounded-lg px-3 py-2 text-slate-200 text-xs">
                 </div>
                 <div>
                     <label class="block text-[10px] font-semibold text-slate-400 mb-1.5">厚度 (mm)</label>
-                    <input type="number" id="wallThickness" required min="50" max="5000" value="200" class="w-full bg-slate-950 border border-slate-800 rounded-lg px-3 py-2 text-slate-200 text-xs">
+                    <input type="number" id="wallThickness" required min="10" max="30000" value="200" class="w-full bg-slate-950 border border-slate-800 rounded-lg px-3 py-2 text-slate-200 text-xs">
                 </div>
                 <div>
                     <label class="block text-[10px] font-semibold text-slate-400 mb-1.5">高度 (mm)</label>
-                    <input type="number" id="wallHeight" required min="500" max="5000" value="2400" class="w-full bg-slate-950 border border-slate-800 rounded-lg px-3 py-2 text-slate-200 text-xs">
+                    <input type="number" id="wallHeight" required min="10" max="5000" value="2400" class="w-full bg-slate-950 border border-slate-800 rounded-lg px-3 py-2 text-slate-200 text-xs">
                 </div>
                 <div class="flex justify-end gap-3 pt-2">
                     <button type="button" onclick="closeModal('customWallModal')" class="bg-slate-800 text-slate-300 px-4 py-2 rounded-lg text-xs">取消</button>
-                    <button type="submit" class="bg-emerald-600 text-white px-5 py-2 rounded-lg text-xs font-semibold">新增牆身</button>
+                    <button type="submit" class="bg-emerald-600 text-white px-5 py-2 rounded-lg text-xs font-semibold">新增柱/牆身</button>
                 </div>
             </form>
         </div>
